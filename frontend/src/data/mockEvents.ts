@@ -1,0 +1,50 @@
+import { DisruptionEvent } from '../types/event';
+
+export const initialDisruptionEvents: DisruptionEvent[] = [
+  {
+    id: 'EVT-001',
+    type: 'ROAD_CLOSURE',
+    title: 'Road Closure: Tonk Road Flyover',
+    description: 'Emergency municipal culvert repair between Gandhi Nagar & Laxmi Mandir. Avoid corridor 11:00 AM – 03:00 PM.',
+    location: 'Tonk Road (Gandhi Nagar Flyover)',
+    timestamp: '11:15 AM',
+    severity: 'CRITICAL',
+    affectedVehicleIds: ['V01', 'V04'],
+    affectedOrderIds: ['#1010'],
+    impactDelayMinutes: 26,
+    impactCostInr: 340,
+    resolved: false,
+    reoptimisationTriggered: true,
+    recoveryRecommendation: 'Divert via Jan Path & Gopalpura Bypass corridor.'
+  },
+  {
+    id: 'EVT-002',
+    type: 'TRAFFIC',
+    title: 'Heavy Traffic Bottleneck',
+    description: 'Severe congestion at Calgiri Marg / Malviya Nagar Sector 4 junction. Average vehicle transit speeds reduced to 12 km/h.',
+    location: 'Malviya Nagar Calgiri Marg',
+    timestamp: '10:42 AM',
+    severity: 'WARNING',
+    affectedVehicleIds: ['V04'],
+    affectedOrderIds: ['#1009'],
+    impactDelayMinutes: 14,
+    impactCostInr: 120,
+    resolved: false,
+    reoptimisationTriggered: false,
+  },
+  {
+    id: 'EVT-003',
+    type: 'WEATHER',
+    title: 'Monsoon Heavy Shower Ingestion',
+    description: 'Heavy precipitation forecast across South-West Jaipur. Friction degradation penalty +15% travel time added to routing model.',
+    location: 'Zone South-West (Mansarovar & Sodala)',
+    timestamp: '09:50 AM',
+    severity: 'WARNING',
+    affectedVehicleIds: ['V01', 'V02'],
+    affectedOrderIds: ['#1003', '#1006'],
+    impactDelayMinutes: 12,
+    impactCostInr: 180,
+    resolved: false,
+    reoptimisationTriggered: false,
+  }
+];
