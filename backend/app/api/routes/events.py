@@ -21,7 +21,7 @@ router = APIRouter(prefix="/events", tags=["Events"])
 async def create_event(
     req: EventCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.DISPATCHER, UserRole.ADMIN))
+    current_user: User = Depends(require_roles(UserRole.DISPATCHER, UserRole.ADMIN, UserRole.DRIVER))
 ):
     event = Event(
         id=str(uuid.uuid4()),

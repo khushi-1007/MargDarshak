@@ -143,11 +143,20 @@ export const CurrentStopCard: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setNavigating(!navigating)}
+          onClick={() => {
+            const lat = currentStop.lat || 26.9124;
+            const lng = currentStop.lng || 75.7873;
+            const label = encodeURIComponent(currentStop.name || 'Delivery Stop');
+            window.open(
+              `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=&travelmode=driving`,
+              '_blank'
+            );
+            setNavigating(true);
+          }}
           className="py-2.5 px-4 rounded-xl bg-primary-container hover:bg-primary text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 active:scale-98"
         >
           <Navigation className="w-4 h-4" />
-          <span>{navigating ? 'Pause Guidance' : 'NAVIGATE TO STOP'}</span>
+          <span>{navigating ? 'Navigating ↗' : 'NAVIGATE TO STOP'}</span>
         </button>
       </div>
 

@@ -1,6 +1,8 @@
 export interface RouteStop {
   stopNumber: number;
-  orderId?: string;
+  orderId?: string;       // external_order_id for display (e.g. ORD-1016)
+  backendOrderId?: string; // real UUID for API calls
+  stopId?: string;        // route_stop.id for direct status update
   name: string;
   address: string;
   lat: number;

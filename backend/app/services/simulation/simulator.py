@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.order import Order, OrderPriority, OrderStatus
 from app.models.route import Route, RouteStatus
 from app.models.simulation import Simulation, SimulationScenarioType
-from app.models.vehicle import Vehicle, VehicleStatus
+from app.models.vehicle import Vehicle, VehicleStatus, VehicleType
 from app.schemas.simulation import (
     ScenarioComparisonResponse,
     SimulationDelta,
@@ -27,7 +27,14 @@ class WhatIfSimulator:
 
     async def run_scenario(self, req: SimulationScenarioRequest) -> ScenarioComparisonResponse:
         # 1. Fetch current production baseline
-        active_routes = self.db.query(Route).filter(Route.status == RouteStatus.ACTIVE).all()
+        active_routes = self.db.query(Route).filter(
+            Route.status.in_([RouteStatus.ACTIVE, RouteStatus.IN_PROGRESS])
+        ).all()
+        if not active_routes:
+            active_routes = self.db.query(Route).filter(
+                Route.status != RouteStatus.CANCELLED
+            ).all()
+
         baseline_vehicles = self.db.query(Vehicle).filter(
             Vehicle.status.in_([VehicleStatus.AVAILABLE, VehicleStatus.ASSIGNED, VehicleStatus.ON_ROUTE])
         ).all()
@@ -43,21 +50,33 @@ class WhatIfSimulator:
 
         traffic_multiplier = 1.0
 
-        # 3. Apply what-if mutations
-        if req.scenario_type in [SimulationScenarioType.REMOVE_VEHICLE, SimulationScenarioType.VEHICLE_BREAKDOWN]:
+        # 3. Apply what-if mutations (supports single or compound multi-vector scenarios)
+        if req.removed_vehicle_id or req.scenario_type in [SimulationScenarioType.REMOVE_VEHICLE, SimulationScenarioType.VEHICLE_BREAKDOWN]:
             if req.removed_vehicle_id:
-                sim_vehicles = [v for v in sim_vehicles if v.id != req.removed_vehicle_id and v.vehicle_number != req.removed_vehicle_id]
+                sim_vehicles = [
+                    v for v in sim_vehicles 
+                    if v.id != req.removed_vehicle_id 
+                    and v.vehicle_number != req.removed_vehicle_id
+                    and req.removed_vehicle_id not in v.vehicle_number
+                ]
             elif sim_vehicles:
-                # Remove first vehicle if unspecified
-                sim_vehicles.pop(0)
+                # Remove V04 or first vehicle
+                v04 = [v for v in sim_vehicles if "4004" in v.vehicle_number or "6712" in v.vehicle_number]
+                if v04:
+                    sim_vehicles = [v for v in sim_vehicles if v != v04[0]]
+                else:
+                    sim_vehicles.pop(0)
 
-        elif req.scenario_type == SimulationScenarioType.ADD_VEHICLE:
+        if req.new_vehicle_capacity_kg or req.scenario_type == SimulationScenarioType.ADD_VEHICLE:
             new_v = Vehicle(
                 id=f"sim_v_{uuid.uuid4().hex[:6]}",
                 vehicle_number=f"SIM-V{len(sim_vehicles)+1:02d}",
+                vehicle_type=VehicleType.LIGHT_COMMERCIAL,
                 capacity_kg=req.new_vehicle_capacity_kg or 1200.0,
                 cost_per_km=12.0,
                 fuel_cost_per_km=8.0,
+                toll_factor=1.0,
+                overtime_cost_per_minute=3.5,
                 status=VehicleStatus.AVAILABLE,
                 current_lat=26.9124,
                 current_lng=75.7873,
@@ -66,7 +85,7 @@ class WhatIfSimulator:
             )
             sim_vehicles.append(new_v)
 
-        elif req.scenario_type == SimulationScenarioType.ADD_PRIORITY_ORDER:
+        if req.new_priority_order or req.scenario_type == SimulationScenarioType.ADD_PRIORITY_ORDER:
             if req.new_priority_order:
                 po = Order(
                     id=f"sim_ord_{uuid.uuid4().hex[:6]}",
@@ -77,28 +96,31 @@ class WhatIfSimulator:
                     delivery_lng=req.new_priority_order.delivery_lng,
                     delivery_address=req.new_priority_order.delivery_address,
                     weight_kg=req.new_priority_order.weight_kg,
-                    priority=req.new_priority_order.priority,
-                    window_start=req.new_priority_order.window_start,
-                    window_end=req.new_priority_order.window_end,
+                    priority=req.new_priority_order.priority or OrderPriority.CRITICAL,
+                    window_start=req.new_priority_order.window_start or "10:00",
+                    window_end=req.new_priority_order.window_end or "12:00",
+                    service_duration_minutes=getattr(req.new_priority_order, "service_duration_minutes", 15) or 15,
+                    required_vehicle_type=getattr(req.new_priority_order, "required_vehicle_type", None),
                     status=OrderStatus.PENDING
                 )
                 sim_orders.append(po)
 
-        elif req.scenario_type == SimulationScenarioType.ROAD_CLOSURE:
+        if req.road_closure_lat or req.scenario_type == SimulationScenarioType.ROAD_CLOSURE:
             traffic_multiplier = 1.6  # Detours increase route durations
 
-        elif req.scenario_type == SimulationScenarioType.REDUCE_DRIVER_HOURS:
+        if req.reduced_driver_hours or req.scenario_type == SimulationScenarioType.REDUCE_DRIVER_HOURS:
             reduced_limit = req.reduced_driver_hours or 4.0
             for v in sim_vehicles:
                 if v.driver:
                     v.driver.max_work_hours = reduced_limit
 
-        # 4. Solve the temporary simulation scenario
+        # 4. Solve the temporary simulation scenario with responsive 3s limit
         solver = VRPTSolver(
             vehicles=sim_vehicles,
             orders=sim_orders,
             traffic_factor=traffic_multiplier,
-            allow_drops_with_penalty=True
+            allow_drops_with_penalty=True,
+            time_limit_seconds=3,
         )
         sim_solution = await solver.solve()
 

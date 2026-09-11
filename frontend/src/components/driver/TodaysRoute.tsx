@@ -19,7 +19,7 @@ export const TodaysRoute: React.FC<TodaysRouteProps> = ({ onOpenFullRoute }) => 
           <div className="flex items-center gap-1.5">
             <h2 className="text-sm font-bold text-deep-navy">Today's Route</h2>
             <span className="px-1.5 py-0.2 rounded bg-primary/10 text-primary font-mono text-[10px] font-bold">
-              {activeDriverRoute?.id || 'R-V01'}
+              {activeDriverRoute?.id ? (activeDriverRoute.id.length > 8 ? 'R-01' : activeDriverRoute.id) : 'R-V01'}
             </span>
           </div>
           <p className="text-[11px] text-text-muted mt-0.5">

@@ -111,7 +111,7 @@ async def test_solver_scalability_and_time_limits(num_orders, num_vehicles):
     res = await solver.solve()
     elapsed = time.time() - t0
 
-    # Solver should complete within time_limit + buffer
-    assert elapsed < time_limit + 4.0
+    # Solver should complete within time_limit + HTTP/matrix network buffer
+    assert elapsed < time_limit + 8.0
     assert res["status"] in ["FEASIBLE", "PARTIALLY_FEASIBLE"]
     assert res["execution_time_ms"] > 0

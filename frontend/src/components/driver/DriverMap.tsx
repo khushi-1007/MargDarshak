@@ -1,4 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Polyline,
+  Circle,
+  useMap,
+} from 'react-leaflet';
+import L from 'leaflet';
 import {
   Navigation,
   Plus,
@@ -11,17 +21,104 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { RouteStop } from '../../types/route';
+
+const JAIPUR_DEPOT: [number, number] = [26.9124, 75.7873];
+
+// Camera controller for centering on driver/current stop
+function DriverMapController({
+  center,
+  zoom,
+}: {
+  center: [number, number];
+  zoom: number;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    map.flyTo(center, zoom, { duration: 0.8 });
+  }, [center, zoom, map]);
+  return null;
+}
+
+// Custom Leaflet Icons for Driver Console with Live Telemetry
+const getDriverVehicleIcon = (vehicleId: string, speedKmh: number, heading = 0) => {
+  return L.divIcon({
+    className: 'custom-leaflet-div-icon',
+    html: `
+      <div style="position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;">
+        <span style="position: absolute; width: 44px; height: 44px; border-radius: 9999px; background-color: rgba(37, 99, 235, 0.35); animation: ping 1.2s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
+        <div style="display: flex; align-items: center; justify-content: center; background-color: #0f172a; color: #38bdf8; border: 1.5px solid #38bdf8; border-radius: 6px; padding: 1px 6px; font-size: 9px; font-weight: 700; font-family: monospace; box-shadow: 0 2px 6px rgba(0,0,0,0.5); margin-bottom: 2px; z-index: 10;">
+          ${vehicleId.length > 8 ? 'V01' : vehicleId} • ${speedKmh} km/h
+        </div>
+        <div style="width: 26px; height: 26px; border-radius: 9999px; background-color: #2563eb; color: #ffffff; display: flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 4px 10px rgba(0,0,0,0.4); z-index: 10;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="transform: rotate(${heading}deg); transition: transform 0.4s ease-out;"><polygon points="12 2 19 21 12 17 5 21 12 2"/></svg>
+        </div>
+      </div>
+    `,
+    iconSize: [80, 50],
+    iconAnchor: [40, 40],
+    popupAnchor: [0, -38],
+  });
+};
+
+const getDriverStopIcon = (
+  stopNumber: number,
+  isCompleted: boolean,
+  isCurrent: boolean,
+  isPriority: boolean
+) => {
+  const bg = isCompleted ? '#16a34a' : isCurrent ? '#2563eb' : '#64748b';
+  const size = isCurrent ? 30 : 24;
+
+  return L.divIcon({
+    className: 'custom-leaflet-div-icon',
+    html: `
+      <div style="position: relative; display: flex; align-items: center; justify-content: center; width: ${size}px; height: ${size}px; cursor: pointer;">
+        ${
+          isCurrent
+            ? '<span style="position: absolute; width: 40px; height: 40px; border-radius: 9999px; background-color: rgba(37, 99, 235, 0.4); animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>'
+            : isPriority
+            ? '<span style="position: absolute; width: 34px; height: 34px; border-radius: 9999px; background-color: rgba(245, 158, 11, 0.4); animation: ping 1.5s infinite;"></span>'
+            : ''
+        }
+        <div style="width: ${size}px; height: ${size}px; border-radius: 9999px; background-color: ${bg}; color: white; display: flex; align-items: center; justify-content: center; font-size: ${
+      isCurrent ? '12px' : '10px'
+    }; font-weight: 800; border: 2px solid #ffffff; box-shadow: 0 3px 8px rgba(0,0,0,0.3); font-family: Inter, sans-serif;">
+          ${isCompleted ? '✓' : stopNumber}
+        </div>
+      </div>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -(size / 2 + 4)],
+  });
+};
+
+const getDriverDepotIcon = () => {
+  return L.divIcon({
+    className: 'custom-leaflet-div-icon',
+    html: `
+      <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;">
+        <div style="width: 28px; height: 28px; border-radius: 6px; background: #1e293b; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; border: 2px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); font-family: Inter, sans-serif;">
+          DEP
+        </div>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -16],
+  });
+};
 
 export const DriverMap: React.FC = () => {
   const {
     activeDriverRoute,
     activeDriverVehicle,
     currentStopIndex,
+    events,
     openRouteComparisonForIncident,
+    telemetryState,
   } = useFleet();
-
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [activeView, setActiveView] = useState<'ROUTE' | 'FOCUS_CURRENT'>('ROUTE');
 
   const stops = activeDriverRoute?.stops || [];
   const currentStop =
@@ -29,40 +126,53 @@ export const DriverMap: React.FC = () => {
       ? stops[currentStopIndex]
       : stops[0];
 
-  // Coordinates projection helper for Jaipur (Lat: 26.82 to 26.96, Lng: 75.72 to 75.85)
-  const toSvgCoords = (lat: number, lng: number) => {
-    const minLat = 26.81;
-    const maxLat = 26.97;
-    const minLng = 75.72;
-    const maxLng = 75.85;
+  const driverTelemetry = activeDriverVehicle
+    ? telemetryState?.vehicles?.get(activeDriverVehicle.id)
+    : undefined;
 
-    const x = ((lng - minLng) / (maxLng - minLng)) * 540 + 30;
-    const y = ((maxLat - lat) / (maxLat - minLat)) * 340 + 30;
-    return { x: Math.round(x), y: Math.round(y) };
-  };
+  // Dynamic Driver position calculation:
+  // Uses real-time GPS telemetry from TelemetryEngine
+  const driverPos = useMemo<[number, number]>(() => {
+    if (driverTelemetry && driverTelemetry.currentLat && driverTelemetry.currentLng) {
+      return [driverTelemetry.currentLat, driverTelemetry.currentLng];
+    }
+    if (
+      activeDriverVehicle?.currentLat &&
+      activeDriverVehicle?.currentLng &&
+      (activeDriverVehicle.currentLat !== JAIPUR_DEPOT[0] ||
+        activeDriverVehicle.currentLng !== JAIPUR_DEPOT[1])
+    ) {
+      return [activeDriverVehicle.currentLat, activeDriverVehicle.currentLng];
+    }
+    if (currentStop) {
+      return [currentStop.lat + 0.003, currentStop.lng - 0.003];
+    }
+    return JAIPUR_DEPOT;
+  }, [driverTelemetry, activeDriverVehicle, currentStop]);
 
-  // Build path string for driver's route
-  const waypoints = activeDriverRoute?.waypoints || [
-    [26.9239, 75.8038],
-    [26.915, 75.795],
-    [26.9022, 75.7767],
-    [26.878, 75.772],
-    [26.8529, 75.7675],
-    [26.868, 75.791],
-    [26.8839, 75.8052],
-  ];
+  const [mapCenter, setMapCenter] = useState<[number, number]>(driverPos);
+  const [mapZoom, setMapZoom] = useState<number>(14);
 
-  const pathString = waypoints
-    .map((wp, i) => {
-      const { x, y } = toSvgCoords(wp[0], wp[1]);
-      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-    })
-    .join(' ');
+  // Update map center when driver position changes
+  useEffect(() => {
+    setMapCenter(driverPos);
+  }, [driverPos]);
 
-  // Driver vehicle current simulated coordinates
-  const driverVehiclePos = currentStop
-    ? toSvgCoords(currentStop.lat + 0.008, currentStop.lng - 0.006)
-    : { x: 280, y: 200 };
+  // Route path coordinates from backend stops
+  const routePath = useMemo<[number, number][]>(() => {
+    if (stops.length === 0) return [JAIPUR_DEPOT];
+    return [
+      JAIPUR_DEPOT,
+      ...stops.map((s): [number, number] => [s.lat, s.lng]),
+    ];
+  }, [stops]);
+
+  // Active nearby disruption events in Jaipur
+  const activeEvents = useMemo(() => {
+    return events.filter((e) => !e.resolved && e.lat !== undefined && e.lng !== undefined);
+  }, [events]);
+
+  const isReoptimised = activeDriverRoute?.status === 'REOPTIMISED';
 
   return (
     <div className="bg-surface-main rounded-2xl border border-border-subtle shadow-xs overflow-hidden flex flex-col relative select-none">
@@ -71,18 +181,25 @@ export const DriverMap: React.FC = () => {
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-status-success animate-ping" />
           <span className="font-bold text-xs">Live Corridor Nav</span>
-          <span className="text-slate-400 font-mono text-[11px] hidden sm:inline">• 38 km/h</span>
-          <span className="text-emerald-400 font-mono text-[11px] font-semibold hidden md:inline">100% Solid GPS</span>
+          <span className="text-slate-400 font-mono text-[11px] hidden sm:inline">
+            • {driverTelemetry?.speedKmh || 40} km/h
+          </span>
+          <span className="text-sky-300 font-mono text-[11px] font-semibold hidden md:inline">
+            • {driverTelemetry?.distanceToNextStopMeters || 450}m to Stop
+          </span>
+          <span className="text-emerald-400 font-mono text-[11px] font-semibold hidden md:inline">
+            GPS Locked
+          </span>
         </div>
 
         {/* Dynamic corridor detour badge if route was re-optimised */}
-        {activeDriverRoute?.status === 'REOPTIMISED' ? (
+        {isReoptimised ? (
           <button
             onClick={() => openRouteComparisonForIncident('TRAFFIC')}
             className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-ai-intelligence/40 hover:bg-ai-intelligence border border-purple-400/50 text-[11px] font-semibold text-purple-200 hover:text-white transition-colors"
           >
             <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
-            <span>Via Gopalpura / MI Rd Bypass</span>
+            <span>AI Dynamic Bypass Active</span>
           </button>
         ) : (
           <div className="flex items-center gap-1.5 text-[11px] text-slate-300">
@@ -92,171 +209,198 @@ export const DriverMap: React.FC = () => {
         )}
       </div>
 
-      {/* Map Interactive Canvas */}
-      <div className="relative w-full h-[360px] sm:h-[400px] bg-[#EAEFF5] overflow-hidden">
-        <svg
-          viewBox="0 0 600 400"
-          className="w-full h-full object-cover transition-transform duration-300"
-          style={{ transform: `scale(${zoomLevel})` }}
+      {/* Map Interactive Leaflet Canvas */}
+      <div className="relative w-full h-[380px] sm:h-[420px] bg-[#EAEFF5] overflow-hidden">
+        <MapContainer
+          center={mapCenter}
+          zoom={mapZoom}
+          scrollWheelZoom={true}
+          style={{ height: '100%', width: '100%' }}
+          attributionControl={false}
         >
-          {/* Base Road Network (Jaipur Grid) */}
-          <g stroke="#CBD5E1" strokeWidth="6" strokeLinecap="round" opacity="0.6">
-            <line x1="60" y1="80" x2="540" y2="80" />
-            <line x1="60" y1="180" x2="540" y2="180" />
-            <line x1="60" y1="280" x2="540" y2="280" />
-            <line x1="160" y1="40" x2="160" y2="360" />
-            <line x1="300" y1="40" x2="300" y2="360" />
-            <line x1="440" y1="40" x2="440" y2="360" />
-            {/* Diagonal Arteries (Ajmer Rd, Tonk Rd) */}
-            <line x1="80" y1="60" x2="500" y2="340" stroke="#94A3B8" strokeWidth="8" />
-            <line x1="500" y1="60" x2="120" y2="320" stroke="#94A3B8" strokeWidth="7" />
-          </g>
+          <DriverMapController center={mapCenter} zoom={mapZoom} />
 
-          {/* Tonk Road Traffic Congestion Highlight */}
-          <g>
-            <line
-              x1="380"
-              y1="220"
-              x2="450"
-              y2="280"
-              stroke="#EF4444"
-              strokeWidth="9"
-              strokeLinecap="round"
-              opacity="0.8"
-            />
-            <circle cx="415" cy="250" r="14" fill="#EF4444" opacity="0.25" className="animate-ping" />
-          </g>
-
-          {/* Route Polyline */}
-          <path
-            d={pathString}
-            fill="none"
-            stroke="#2563EB"
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="drop-shadow-sm"
+          {/* Clean Light/Crisp OpenStreetMap Tiles (Zero Watermark) */}
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maxZoom={19}
+            subdomains="abc"
           />
 
-          {/* Active Animated Route Dash */}
-          <path
-            d={pathString}
-            fill="none"
-            stroke="#60A5FA"
-            strokeWidth="2.5"
-            strokeDasharray="8 6"
-            strokeLinecap="round"
-            className="animate-pulse"
-          />
+          {/* Depot Origin Marker */}
+          <Marker position={JAIPUR_DEPOT} icon={getDriverDepotIcon()}>
+            <Popup>
+              <div className="p-2 text-xs font-sans">
+                <span className="font-bold text-slate-900">Jaipur Central Hub</span>
+                <p className="text-slate-500 text-[11px]">Departure Base</p>
+              </div>
+            </Popup>
+          </Marker>
 
-          {/* Depot Pin (Sitapura) */}
-          <g transform="translate(180, 310)">
-            <rect x="-14" y="-12" width="28" height="24" rx="6" fill="#1E293B" stroke="#FFFFFF" strokeWidth="2" />
-            <text x="0" y="4" fill="#FFFFFF" fontSize="10" fontWeight="bold" textAnchor="middle">
-              DEP
-            </text>
-          </g>
-
-          {/* Stop Markers */}
-          {stops.map((stop, idx) => {
-            const { x, y } = toSvgCoords(stop.lat, stop.lng);
-            const isCurrent = idx === currentStopIndex;
-            const isCompleted = stop.completed;
-            const displayNum = idx + 1;
+          {/* Dynamic Active Disruption Zones */}
+          {activeEvents.map((evt) => {
+            const isCritical = evt.severity === 'CRITICAL';
+            const color = isCritical ? '#dc2626' : '#f59e0b';
+            const lat = evt.lat as number;
+            const lng = evt.lng as number;
 
             return (
-              <g key={`marker-${stop.orderId || idx}`} transform={`translate(${x}, ${y})`}>
-                {isCurrent && (
-                  <circle r="18" fill="#2563EB" opacity="0.3" className="animate-ping" />
-                )}
-                <circle
-                  r="12"
-                  fill={isCompleted ? '#16A34A' : isCurrent ? '#2563EB' : '#64748B'}
-                  stroke="#FFFFFF"
-                  strokeWidth="2"
-                  className="shadow-sm"
+              <React.Fragment key={`driver-evt-${evt.id}`}>
+                <Circle
+                  center={[lat, lng]}
+                  radius={(evt.radiusKm || 1) * 1000}
+                  pathOptions={{
+                    color,
+                    fillColor: color,
+                    fillOpacity: 0.25,
+                    weight: 2,
+                    dashArray: '4, 6',
+                  }}
                 />
-                <text
-                  x="0"
-                  y="4"
-                  fill="#FFFFFF"
-                  fontSize="10"
-                  fontWeight="bold"
-                  textAnchor="middle"
-                >
-                  {isCompleted ? '✓' : displayNum}
-                </text>
-                {/* Stop Name Label */}
-                <rect
-                  x="-35"
-                  y="16"
-                  width="70"
-                  height="16"
-                  rx="4"
-                  fill="#FFFFFF"
-                  stroke="#E2E8F0"
-                  strokeWidth="1"
-                  opacity="0.9"
-                />
-                <text
-                  x="0"
-                  y="28"
-                  fill="#1E293B"
-                  fontSize="8"
-                  fontWeight="600"
-                  textAnchor="middle"
-                >
-                  {stop.name.slice(0, 10)}..
-                </text>
-              </g>
+              </React.Fragment>
             );
           })}
 
-          {/* Current Driver Vehicle Position Pin */}
-          <g transform={`translate(${driverVehiclePos.x}, ${driverVehiclePos.y})`}>
-            {/* Pulsing radius */}
-            <circle r="22" fill="#2563EB" opacity="0.2" className="animate-pulse" />
-            {/* Pin body */}
-            <rect x="-36" y="-30" width="72" height="24" rx="6" fill="#0F172A" stroke="#38BDF8" strokeWidth="1.5" />
-            <text x="0" y="-14" fill="#FFFFFF" fontSize="9" fontWeight="bold" textAnchor="middle">
-              {activeDriverVehicle?.id || 'V01'} • 38 km/h
-            </text>
-            {/* Vehicle arrow / beacon */}
-            <circle cx="0" cy="0" r="10" fill="#2563EB" stroke="#FFFFFF" strokeWidth="2" />
-            <polygon points="0,-6 5,4 -5,4" fill="#FFFFFF" transform="rotate(45)" />
-          </g>
-        </svg>
+          {/* Route Polylines */}
+          {routePath.length > 1 && (
+            <>
+              {/* Solid Route Line */}
+              <Polyline
+                positions={routePath}
+                pathOptions={{
+                  color: isReoptimised ? '#7c3aed' : '#2563eb',
+                  weight: 6,
+                  opacity: 0.85,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                }}
+              />
+              {/* Inner Glowing Animated Line */}
+              <Polyline
+                positions={routePath}
+                pathOptions={{
+                  color: isReoptimised ? '#c084fc' : '#93c5fd',
+                  weight: 2.5,
+                  opacity: 0.9,
+                  dashArray: '8, 8',
+                }}
+              />
+            </>
+          )}
 
-        {/* Map Overlays: Current Stop Ahead Callout */}
+          {/* Stop Markers */}
+          {stops.map((stop, idx) => {
+            const isCurrent = idx === currentStopIndex;
+            const isCompleted = stop.completed;
+            const isPriority = Boolean(stop.isPriority);
+
+            return (
+              <Marker
+                key={`driver-stop-${stop.orderId || idx}`}
+                position={[stop.lat, stop.lng]}
+                icon={getDriverStopIcon(
+                  stop.stopNumber || idx + 1,
+                  isCompleted,
+                  isCurrent,
+                  isPriority
+                )}
+              >
+                <Popup>
+                  <div className="p-3 text-slate-900 rounded-lg min-w-[200px] font-sans">
+                    <div className="flex items-center justify-between pb-1 border-b border-slate-200">
+                      <span className="font-bold text-xs text-blue-600">
+                        Stop #{idx + 1}
+                      </span>
+                      {isCompleted ? (
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold">
+                          Delivered ✓
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold">
+                          Next
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1.5 text-xs font-semibold text-slate-800">
+                      {stop.name}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {stop.address}
+                    </p>
+                    <div className="mt-2 text-[11px] font-mono text-slate-600">
+                      ETA: {stop.eta}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          })}
+
+          {/* Live Driver Vehicle Marker */}
+          <Marker
+            position={driverPos}
+            icon={getDriverVehicleIcon(
+              activeDriverVehicle?.id || 'V01',
+              driverTelemetry?.speedKmh || activeDriverVehicle?.currentSpeedKmh || 40,
+              driverTelemetry?.headingDegrees || 0
+            )}
+          >
+            <Popup>
+              <div className="p-2 text-xs font-sans">
+                <span className="font-bold text-slate-900">
+                  {activeDriverVehicle?.name || 'Tata 407 SFC'}
+                </span>
+                <p className="text-slate-500 text-[11px]">
+                  Pilot: {activeDriverVehicle?.driverName || 'Rajesh Kumar'}
+                </p>
+                <p className="font-mono text-blue-600 mt-1">
+                  Speed: {driverTelemetry?.speedKmh || 40} km/h • {driverTelemetry?.distanceToNextStopMeters || 450}m to destination
+                </p>
+              </div>
+            </Popup>
+          </Marker>
+        </MapContainer>
+
+        {/* Current Stop Ahead Callout Overlay */}
         {currentStop && (
-          <div className="absolute bottom-4 left-4 z-10 bg-white/95 backdrop-blur px-3 py-1.5 rounded-xl border border-border-subtle shadow-md flex items-center gap-2 text-xs">
-            <span className="w-2.5 h-2.5 rounded-full bg-primary-container animate-pulse" />
-            <span className="font-bold text-deep-navy">
-              Stop {currentStopIndex + 1}: {currentStop.name}
+          <div className="absolute bottom-4 left-4 z-20 bg-white/95 backdrop-blur px-3 py-2 rounded-xl border border-slate-200 shadow-lg flex items-center gap-2.5 text-xs">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse shrink-0" />
+            <div>
+              <div className="font-bold text-slate-900">
+                Stop {currentStopIndex + 1}: {currentStop.name}
+              </div>
+              <div className="text-[11px] text-slate-500 truncate max-w-[220px]">
+                {currentStop.address}
+              </div>
+            </div>
+            <span className="font-mono text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200 ml-1">
+              {currentStop.eta}
             </span>
-            <span className="font-mono text-primary font-semibold">({currentStop.eta})</span>
           </div>
         )}
 
-        {/* Map Control Buttons (Live Location, Zoom In, Zoom Out, Center) */}
-        <div className="absolute top-4 right-4 z-10 flex flex-col gap-1.5 shadow-md">
+        {/* Map Control Buttons (Zoom In, Zoom Out, Recenter) */}
+        <div className="absolute top-4 right-4 z-20 flex flex-col gap-1.5 shadow-md">
           <button
-            onClick={() => setZoomLevel((z) => Math.min(1.6, z + 0.15))}
-            className="w-8 h-8 rounded-lg bg-white hover:bg-slate-50 text-deep-navy flex items-center justify-center border border-border-subtle shadow-xs transition-colors"
+            onClick={() => setMapZoom((z) => Math.min(18, z + 1))}
+            className="w-8 h-8 rounded-lg bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center border border-slate-200 shadow-xs transition-colors"
             title="Zoom In"
           >
             <Plus className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setZoomLevel((z) => Math.max(0.85, z - 0.15))}
-            className="w-8 h-8 rounded-lg bg-white hover:bg-slate-50 text-deep-navy flex items-center justify-center border border-border-subtle shadow-xs transition-colors"
+            onClick={() => setMapZoom((z) => Math.max(10, z - 1))}
+            className="w-8 h-8 rounded-lg bg-white hover:bg-slate-50 text-slate-800 flex items-center justify-center border border-slate-200 shadow-xs transition-colors"
             title="Zoom Out"
           >
             <Minus className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setZoomLevel(1)}
-            className="w-8 h-8 rounded-lg bg-white hover:bg-slate-50 text-primary-container flex items-center justify-center border border-border-subtle shadow-xs transition-colors"
+            onClick={() => {
+              setMapCenter(driverPos);
+              setMapZoom(15);
+            }}
+            className="w-8 h-8 rounded-lg bg-white hover:bg-slate-50 text-blue-600 flex items-center justify-center border border-slate-200 shadow-xs transition-colors"
             title="Center on Driver Position"
           >
             <Crosshair className="w-4 h-4" />
@@ -264,14 +408,14 @@ export const DriverMap: React.FC = () => {
         </div>
 
         {/* Map Legend */}
-        <div className="absolute bottom-4 right-4 z-10 bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg border border-border-subtle shadow-xs flex items-center gap-3 text-[11px] font-medium text-deep-navy">
+        <div className="absolute bottom-4 right-4 z-20 bg-white/95 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs flex items-center gap-3 text-[11px] font-medium text-slate-700">
           <div className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-primary-container" />
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
             <span>Current</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-status-success" />
-            <span>Completed</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
+            <span>Done</span>
           </div>
           <div className="flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full bg-slate-500" />

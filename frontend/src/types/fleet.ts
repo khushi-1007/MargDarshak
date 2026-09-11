@@ -9,7 +9,8 @@ export type VehicleStatus =
 export type LoadType = 'GENERAL' | 'COLD_CHAIN' | 'HAZMAT' | 'FRAGILE' | 'EXPRESS';
 
 export interface Vehicle {
-  id: string; // e.g. 'V01'
+  id: string; // e.g. 'V01' or UUID
+  shortId?: string; // e.g. 'V01'
   name: string; // e.g. 'Tata 407 SFC'
   licensePlate: string; // e.g. 'RJ-14-UB-2041'
   driverName: string; // e.g. 'Rajesh Kumar'
@@ -32,4 +33,6 @@ export interface Vehicle {
   telemetrySynced: boolean;
   assignedOrderIds: string[];
   color: string; // Hex color for polylines/markers
+  currentLat?: number;
+  currentLng?: number;
 }

@@ -9,7 +9,7 @@ interface DriverHeaderProps {
 
 export const DriverHeader: React.FC<DriverHeaderProps> = ({ onOpenMenu }) => {
   const navigate = useNavigate();
-  const { activeDriver, activeDriverVehicle } = useFleet();
+  const { activeDriver, activeDriverVehicle, wsStatus } = useFleet();
 
   return (
     <header className="fixed top-0 inset-x-0 z-40 bg-[#0B1220] border-b border-slate-800/80 text-white select-none shadow-md">
@@ -60,8 +60,10 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ onOpenMenu }) => {
           {/* Vehicle Identifier */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs">
             <Truck className="w-3.5 h-3.5 text-blue-400" />
-            <span className="font-bold text-white font-mono">{activeDriverVehicle?.id || 'V01'}</span>
-            <span className="text-slate-400 hidden xl:inline">• {activeDriverVehicle?.licensePlate || 'RJ-14-UB-2041'}</span>
+            <span className="font-bold text-white font-mono">
+              {activeDriverVehicle?.shortId || (activeDriverVehicle?.id && activeDriverVehicle.id.length <= 8 ? activeDriverVehicle.id : 'V01')}
+            </span>
+            <span className="text-slate-400 hidden xl:inline">• {activeDriverVehicle?.licensePlate || 'RJ-14-GA-1001'}</span>
           </div>
 
           {/* Pilot Name & Online Status */}
@@ -78,8 +80,10 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ onOpenMenu }) => {
             <div className="hidden lg:flex flex-col text-left leading-tight">
               <span className="text-xs font-bold text-white">{activeDriver.name}</span>
               <div className="flex items-center gap-1 text-[11px] text-emerald-400">
-                <Wifi className="w-2.5 h-2.5" />
-                <span>4G GPS Online</span>
+                <Wifi className={`w-2.5 h-2.5 ${wsStatus === 'CONNECTED' ? 'text-emerald-400' : wsStatus === 'RECONNECTING' ? 'text-amber-400 animate-pulse' : 'text-red-400'}`} />
+                <span className={wsStatus === 'CONNECTED' ? 'text-emerald-400' : wsStatus === 'RECONNECTING' ? 'text-amber-400' : 'text-red-400'}>
+                  {wsStatus === 'CONNECTED' ? 'Live GPS • Synced' : wsStatus === 'RECONNECTING' ? 'Reconnecting...' : 'Offline'}
+                </span>
               </div>
             </div>
           </div>

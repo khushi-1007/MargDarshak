@@ -8,7 +8,6 @@ import {
   Route as RouteIcon,
   FlaskConical,
   BarChart3,
-  Bot,
   Smartphone,
   Settings,
   ShieldAlert,
@@ -16,7 +15,7 @@ import {
 import { useFleet } from '../../context/FleetContext';
 
 export const Sidebar: React.FC = () => {
-  const { setAiAssistantModalOpen, cascadingFailureActive } = useFleet();
+  const { cascadingFailureActive } = useFleet();
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -81,18 +80,6 @@ export const Sidebar: React.FC = () => {
               </NavLink>
             );
           })}
-
-          {/* AI Operations Assistant Action Item */}
-          <button
-            onClick={() => setAiAssistantModalOpen(true)}
-            className="flex items-center gap-3 px-3 py-2 rounded text-xs font-medium text-purple-300 hover:bg-purple-950/40 hover:text-white transition-colors text-left mt-1"
-          >
-            <Bot className="w-4 h-4 shrink-0 text-ai-intelligence" />
-            <span className="truncate">AI Operations Assistant</span>
-            <span className="ml-auto text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">
-              OR-LLM
-            </span>
-          </button>
         </nav>
       </div>
 

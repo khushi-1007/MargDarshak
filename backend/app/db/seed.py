@@ -62,7 +62,19 @@ def seed_database(db: Session = None) -> dict:
             ("Pooja Choudhary", "+91-9829055555", 8.0, 26.9124, 75.7873),
         ]
         created_drivers = []
-        for name, phone, hours, lat, lng in drivers_data:
+        for idx, (name, phone, hours, lat, lng) in enumerate(drivers_data):
+            driver_email = "driver@margdarshak.ai" if idx == 0 else f"{name.lower().replace(' ', '.')}@margdarshak.ai"
+            driver_user = User(
+                id=str(uuid.uuid4()),
+                name=name,
+                email=driver_email,
+                hashed_password=get_password_hash("driver123"),
+                role=UserRole.DRIVER,
+                organization_id=org.id
+            )
+            db.add(driver_user)
+            db.flush()
+
             d = Driver(
                 id=str(uuid.uuid4()),
                 name=name,
@@ -72,6 +84,7 @@ def seed_database(db: Session = None) -> dict:
                 status=DriverStatus.AVAILABLE,
                 current_lat=lat,
                 current_lng=lng,
+                user_id=driver_user.id,
                 organization_id=org.id
             )
             db.add(d)
@@ -112,26 +125,26 @@ def seed_database(db: Session = None) -> dict:
 
         # 5. Orders (20 Synthetic Orders in Jaipur)
         orders_data = [
-            ("ORD-1001", "Synthetic Client A", "9829100001", 26.9066, 75.7410, "Vaishali Nagar, Near Amrapali Circle", 35.0, OrderPriority.NORMAL, "09:00", "13:00", 15),
-            ("ORD-1002", "Synthetic Client B", "9829100002", 26.8530, 75.8150, "Malviya Nagar, Sector 4 Market", 50.0, OrderPriority.HIGH, "10:00", "14:00", 20),
-            ("ORD-1003", "Synthetic Client C", "9829100003", 26.8680, 75.7600, "Mansarovar, Varun Path Commercial Complex", 120.0, OrderPriority.NORMAL, "09:30", "15:00", 20),
-            ("ORD-1004", "Synthetic Hospital Care", "9829100004", 26.9110, 75.8010, "C-Scheme, Subhash Marg Healthcare Center", 25.0, OrderPriority.CRITICAL, "09:00", "11:30", 15),
-            ("ORD-1005", "Synthetic Retailer D", "9829100005", 26.8970, 75.8280, "Raja Park, Lane 2 Distribution Point", 65.0, OrderPriority.NORMAL, "11:00", "16:00", 15),
-            ("ORD-1006", "Synthetic Factory E", "9829100006", 26.7770, 75.8360, "Sitapura Industrial Area, RIICO Phase 3", 350.0, OrderPriority.NORMAL, "10:00", "17:00", 30),
-            ("ORD-1007", "Synthetic Store F", "9829100007", 26.9450, 75.7480, "Jhotwara Industrial Area, Road No 1", 180.0, OrderPriority.HIGH, "09:30", "13:30", 25),
-            ("ORD-1008", "Synthetic Market G", "9829100008", 26.9630, 75.7820, "Vidhyadhar Nagar, Sector 2 Central Arcade", 40.0, OrderPriority.NORMAL, "12:00", "17:00", 15),
-            ("ORD-1009", "Synthetic Trader H", "9829100009", 26.9200, 75.8230, "Bapu Bazar, Old City Gate 4", 85.0, OrderPriority.NORMAL, "11:00", "15:30", 20),
-            ("ORD-1010", "Synthetic Tech Hub I", "9829100010", 26.8480, 75.8050, "Jawahar Circle, Tonk Road Plaza", 15.0, OrderPriority.HIGH, "13:00", "18:00", 15),
-            ("ORD-1011", "Synthetic Logistics J", "9829100011", 26.8830, 75.7720, "Gopalpura Bypass, Near Kisan Dharamkanta", 90.0, OrderPriority.LOW, "10:00", "18:00", 15),
-            ("ORD-1012", "Synthetic Mart K", "9829100012", 26.8930, 75.7530, "Nirman Nagar, Janpath Wholesale Point", 45.0, OrderPriority.NORMAL, "10:30", "16:00", 15),
-            ("ORD-1013", "Synthetic Pharmacy L", "9829100013", 26.9010, 75.7940, "Civil Lines, Near Raj Bhavan Junction", 18.0, OrderPriority.CRITICAL, "09:00", "12:00", 10),
-            ("ORD-1014", "Synthetic Hardware M", "9829100014", 26.8950, 75.8450, "Jawahar Nagar, Sector 4 Commercial Row", 110.0, OrderPriority.NORMAL, "11:00", "17:00", 20),
-            ("ORD-1015", "Synthetic Textile N", "9829100015", 26.8420, 75.7880, "Sanganer Town, Stadium Road Hub", 220.0, OrderPriority.HIGH, "10:00", "15:00", 25),
-            ("ORD-1016", "Synthetic Electronics O", "9829100016", 26.9250, 75.7920, "MI Road, Panch Batti Showroom", 30.0, OrderPriority.NORMAL, "12:00", "18:00", 15),
-            ("ORD-1017", "Synthetic Appliances P", "9829100017", 26.9380, 75.8120, "Subhash Nagar, Shopping Center", 70.0, OrderPriority.LOW, "11:00", "19:00", 15),
-            ("ORD-1018", "Synthetic Auto Parts Q", "9829100018", 26.7950, 75.8200, "Pratap Nagar, Sector 11 Depot", 140.0, OrderPriority.NORMAL, "09:30", "16:30", 20),
-            ("ORD-1019", "Synthetic Supplies R", "9829100019", 26.8850, 75.8100, "Bapu Nagar, Near University Gate", 55.0, OrderPriority.NORMAL, "13:00", "18:00", 15),
-            ("ORD-1020", "Synthetic Express S", "9829100020", 26.9150, 75.7650, "Shyam Nagar, Metro Pillar 104", 40.0, OrderPriority.HIGH, "10:00", "14:00", 15),
+            ("ORD-1001", "Apex Logistics Depot", "9829100001", 26.9066, 75.7410, "Vaishali Nagar, Near Amrapali Circle", 35.0, OrderPriority.NORMAL, "09:00", "13:00", 15),
+            ("ORD-1002", "Apollo Medical Store", "9829100002", 26.8530, 75.8150, "Malviya Nagar, Sector 4 Market", 50.0, OrderPriority.HIGH, "10:00", "14:00", 20),
+            ("ORD-1003", "Tata Croma Showroom", "9829100003", 26.8680, 75.7600, "Mansarovar, Varun Path Commercial Complex", 120.0, OrderPriority.NORMAL, "09:30", "15:00", 20),
+            ("ORD-1004", "Fortis Healthcare Center", "9829100004", 26.9110, 75.8010, "C-Scheme, Subhash Marg Healthcare Center", 25.0, OrderPriority.CRITICAL, "09:00", "11:30", 15),
+            ("ORD-1005", "Reliance Retail Hub", "9829100005", 26.8970, 75.8280, "Raja Park, Lane 2 Distribution Point", 65.0, OrderPriority.NORMAL, "11:00", "16:00", 15),
+            ("ORD-1006", "Jaipur Textile Mills", "9829100006", 26.7770, 75.8360, "Sitapura Industrial Area, RIICO Phase 3", 350.0, OrderPriority.NORMAL, "10:00", "17:00", 30),
+            ("ORD-1007", "Jhotwara Metal Works", "9829100007", 26.9450, 75.7480, "Jhotwara Industrial Area, Road No 1", 180.0, OrderPriority.HIGH, "09:30", "13:30", 25),
+            ("ORD-1008", "D-Mart Supercenter", "9829100008", 26.9630, 75.7820, "Vidhyadhar Nagar, Sector 2 Central Arcade", 40.0, OrderPriority.NORMAL, "12:00", "17:00", 15),
+            ("ORD-1009", "Bapu Bazar Cloth Emporium", "9829100009", 26.9200, 75.8230, "Bapu Bazar, Old City Gate 4", 85.0, OrderPriority.NORMAL, "11:00", "15:30", 20),
+            ("ORD-1010", "Infosys Digital Campus", "9829100010", 26.8480, 75.8050, "Jawahar Circle, Tonk Road Plaza", 15.0, OrderPriority.HIGH, "13:00", "18:00", 15),
+            ("ORD-1011", "BlueDart Freight Center", "9829100011", 26.8830, 75.7720, "Gopalpura Bypass, Near Kisan Dharamkanta", 90.0, OrderPriority.LOW, "10:00", "18:00", 15),
+            ("ORD-1012", "Big Bazaar Hypermarket", "9829100012", 26.8930, 75.7530, "Nirman Nagar, Janpath Wholesale Point", 45.0, OrderPriority.NORMAL, "10:30", "16:00", 15),
+            ("ORD-1013", "MedPlus Healthcare Point", "9829100013", 26.9010, 75.7940, "Civil Lines, Near Raj Bhavan Junction", 18.0, OrderPriority.CRITICAL, "09:00", "12:00", 10),
+            ("ORD-1014", "JK Cement Supplies", "9829100014", 26.8950, 75.8450, "Jawahar Nagar, Sector 4 Commercial Row", 110.0, OrderPriority.NORMAL, "11:00", "17:00", 20),
+            ("ORD-1015", "Sanganeri Prints Co.", "9829100015", 26.8420, 75.7880, "Sanganer Town, Stadium Road Hub", 220.0, OrderPriority.HIGH, "10:00", "15:00", 25),
+            ("ORD-1016", "Vijay Sales Electronics", "9829100016", 26.9250, 75.7920, "MI Road, Panch Batti Showroom", 30.0, OrderPriority.NORMAL, "12:00", "18:00", 15),
+            ("ORD-1017", "Havells Electricals", "9829100017", 26.9380, 75.8120, "Subhash Nagar, Shopping Center", 70.0, OrderPriority.LOW, "11:00", "19:00", 15),
+            ("ORD-1018", "Mahindra Auto Spares", "9829100018", 26.7950, 75.8200, "Pratap Nagar, Sector 11 Depot", 140.0, OrderPriority.NORMAL, "09:30", "16:30", 20),
+            ("ORD-1019", "Rajasthan University Hub", "9829100019", 26.8850, 75.8100, "Bapu Nagar, Near University Gate", 55.0, OrderPriority.NORMAL, "13:00", "18:00", 15),
+            ("ORD-1020", "Zomato Hyperpure Warehouse", "9829100020", 26.9150, 75.7650, "Shyam Nagar, Metro Pillar 104", 40.0, OrderPriority.HIGH, "10:00", "14:00", 15),
         ]
 
         for ext_id, c_name, phone, lat, lng, addr, wt, prio, w_s, w_e, dur in orders_data:

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFleet } from '../../context/FleetContext';
 import {
   X,
@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Fuel,
   GitCompare,
+  RefreshCw,
 } from 'lucide-react';
 
 export const RouteComparisonDrawer: React.FC = () => {
@@ -17,7 +18,11 @@ export const RouteComparisonDrawer: React.FC = () => {
     routeComparisonOpen,
     setRouteComparisonOpen,
     routeComparisonData,
+    commitAndDispatchRoutes,
+    isOptimising,
   } = useFleet();
+
+  const [committing, setCommitting] = useState<boolean>(false);
 
   if (!routeComparisonOpen || !routeComparisonData) return null;
 
@@ -28,6 +33,21 @@ export const RouteComparisonDrawer: React.FC = () => {
     optimisedRoute,
     delta,
   } = routeComparisonData;
+
+  const handleCommit = async () => {
+    setCommitting(true);
+    try {
+      await commitAndDispatchRoutes();
+    } catch (err) {
+      console.error('Error committing dispatch:', err);
+      setRouteComparisonOpen(false);
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  const isUrgentOrder = incidentTitle.includes('Urgent') || incidentTitle.includes('Priority') || incidentTitle.includes('P-101');
+  const isTraffic = incidentTitle.includes('Congestion') || incidentTitle.includes('Traffic');
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end select-none">
@@ -168,19 +188,43 @@ export const RouteComparisonDrawer: React.FC = () => {
             <div className="space-y-2 text-xs">
               <div className="flex items-center gap-2 text-status-success">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>1. Telemetry fault signal ingested & verified</span>
+                <span>
+                  {isUrgentOrder
+                    ? '1. Emergency priority consignment P-101 ingested via dispatch feed'
+                    : isTraffic
+                    ? '1. Traffic bottleneck detected on Tonk Road corridor'
+                    : '1. Telemetry fault signal ingested & verified'}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-status-success">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>2. Cold-chain & capacity limits validated on neighbor units</span>
+                <span>
+                  {isUrgentOrder
+                    ? '2. Cold-chain pharma specs & 10:00–13:00 window verified'
+                    : isTraffic
+                    ? '2. Travel time penalty adjusted by 1.8x in solver matrix'
+                    : '2. Cold-chain & capacity limits validated on neighbor units'}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-ai-intelligence font-semibold">
                 <Brain className="w-4 h-4 shrink-0" />
-                <span>3. Candidate path re-weighting with spatial avoidances</span>
+                <span>
+                  {isUrgentOrder
+                    ? '3. Dynamic candidate insertion with minimum detour penalty'
+                    : isTraffic
+                    ? '3. Alternative path routed via Jawahar Ring & Apex Circle'
+                    : '3. Candidate path re-weighting with spatial avoidances'}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-text-muted">
                 <ShieldCheck className="w-4 h-4 shrink-0" />
-                <span>4. Updated routing instructions broadcast to driver mobile cab</span>
+                <span>
+                  {isUrgentOrder
+                    ? '4. Ready for dispatch to vehicle RJ-14-GB-2002 driver terminal'
+                    : isTraffic
+                    ? '4. Updated turn-by-turn trajectory pushed to driver cab'
+                    : '4. Updated routing instructions broadcast to driver mobile cab'}
+                </span>
               </div>
             </div>
           </div>
@@ -190,19 +234,28 @@ export const RouteComparisonDrawer: React.FC = () => {
         <div className="p-4 bg-surface-container-low border-t border-border-subtle flex items-center justify-end gap-2.5">
           <button
             onClick={() => setRouteComparisonOpen(false)}
-            className="px-4 py-2 rounded-xl bg-white hover:bg-surface-container text-deep-navy text-xs font-semibold border border-border-subtle transition-colors"
+            className="px-4 py-2 rounded-xl bg-white hover:bg-surface-container text-deep-navy text-xs font-semibold border border-border-subtle transition-colors cursor-pointer"
+            type="button"
           >
             Dismiss
           </button>
           <button
-            onClick={() => {
-              setRouteComparisonOpen(false);
-              alert('Operational dispatch committed. Driver route manifests updated.');
-            }}
-            className="px-4 py-2 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+            onClick={handleCommit}
+            disabled={committing || isOptimising}
+            className="px-4 py-2 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-75 active:scale-95"
+            type="button"
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Commit & Dispatch Drivers</span>
+            {committing || isOptimising ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Dispatching to Drivers...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Commit & Dispatch Drivers</span>
+              </>
+            )}
           </button>
         </div>
       </div>

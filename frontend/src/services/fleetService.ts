@@ -3,12 +3,11 @@ import { Order } from '../types/order';
 import { Route } from '../types/route';
 import { DisruptionEvent } from '../types/event';
 import { Driver, DriverIssue, WeatherData, DispatcherContact, DriverKpis } from '../types/driver';
-import { initialVehicles } from '../data/mockVehicles';
-import { initialOrders, urgentOrderP101 } from '../data/mockOrders';
-import { initialRoutes } from '../data/mockRoutes';
-import { initialDisruptionEvents as initialEvents } from '../data/mockEvents';
-import { initialDrivers, mockDispatcher, initialIssues } from '../data/mockDrivers';
-import { initialWeather } from '../data/mockWeather';
+import { api } from './api';
+import { routeApi } from '../api/routeApi';
+import { vehicleApi } from '../api/vehicleApi';
+import { eventApi } from '../api/eventApi';
+import { orderApi } from '../api/orderApi';
 
 export interface FleetServiceInterface {
   getVehicles(): Promise<Vehicle[]>;
@@ -30,62 +29,78 @@ export interface FleetServiceInterface {
   addUrgentOrder(order?: Order): Promise<Order>;
 }
 
-/**
- * MockFleetService implements FleetServiceInterface using realistic client-side state.
- * In a future stage with a backend, this can be swapped with a real API service
- * making fetch('/api/...') calls without touching any UI component.
- */
-class MockFleetService implements FleetServiceInterface {
+class BackendFleetService implements FleetServiceInterface {
   async getVehicles(): Promise<Vehicle[]> {
-    return [...initialVehicles];
+    return api.getFleet();
   }
 
   async getDrivers(): Promise<Driver[]> {
-    return [...initialDrivers];
+    return api.getDrivers();
   }
 
   async getOrders(): Promise<Order[]> {
-    return [...initialOrders];
+    return api.getOrders();
   }
 
   async getRoutes(): Promise<Route[]> {
-    return [...initialRoutes];
+    return api.getRoutes();
   }
 
   async getEvents(): Promise<DisruptionEvent[]> {
-    return [...initialEvents];
+    return api.getEvents();
   }
 
   async getWeather(): Promise<WeatherData> {
-    return { ...initialWeather };
+    return api.getWeather();
   }
 
   async getDispatcher(): Promise<DispatcherContact> {
-    return { ...mockDispatcher };
+    return {
+      name: 'Jaipur Central Dispatch',
+      role: 'Head of Operations (Jaipur Hub)',
+      hub: 'Jaipur Central Logistics Hub, Transport Nagar',
+      phone: '+91-9829011111',
+      radioChannel: 'Channel 4 (Jaipur Fleet)',
+      status: 'ONLINE',
+    };
   }
 
   async getDriverIssues(): Promise<DriverIssue[]> {
-    return [...initialIssues];
+    const events = await eventApi.listEvents({ type: 'OTHER' });
+    return events.map((e) => ({
+      id: e.id,
+      driverId: e.event_metadata?.driver_id || 'D01',
+      driverName: e.event_metadata?.driver_name || 'Rajesh Sharma',
+      vehicleId: e.vehicle_id || 'V01',
+      type: (e.event_metadata?.issue_type as any) || 'Vehicle Issue',
+      severity: (e.severity as any) || 'Medium',
+      description: e.description,
+      timestamp: new Date(e.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: e.status === 'RESOLVED' ? 'RESOLVED' : 'OPEN',
+    }));
   }
 
   async getDriverRoute(driverId: string): Promise<Route | undefined> {
-    const driver = initialDrivers.find((d) => d.id === driverId);
-    if (!driver) return undefined;
-    return initialRoutes.find((r) => r.vehicleId === driver.vehicleId);
+    const [drivers, routes] = await Promise.all([api.getDrivers(), api.getRoutes()]);
+    const driver = drivers.find((d) => d.id === driverId);
+    if (!driver) return routes[0];
+    return routes.find((r) => r.vehicleId === driver.vehicleId) || routes[0];
   }
 
   async getActiveOrder(driverId: string): Promise<Order | undefined> {
-    const driver = initialDrivers.find((d) => d.id === driverId);
-    if (!driver) return undefined;
-    const route = initialRoutes.find((r) => r.vehicleId === driver.vehicleId);
+    const route = await this.getDriverRoute(driverId);
     if (!route) return undefined;
     const currentStop = route.stops.find((s) => !s.completed);
     if (!currentStop || !currentStop.orderId) return undefined;
-    return initialOrders.find((o) => o.id === currentStop.orderId);
+    const orders = await api.getOrders();
+    return orders.find((o) => o.id === currentStop.orderId);
   }
 
   async getDriverKpis(driverId: string): Promise<DriverKpis> {
-    const route = await this.getDriverRoute(driverId);
+    const [route, weather] = await Promise.all([
+      this.getDriverRoute(driverId),
+      this.getWeather(),
+    ]);
     const total = route?.stops.length || 0;
     const completed = route?.stops.filter((s) => s.completed).length || 0;
     const remaining = total - completed;
@@ -94,64 +109,108 @@ class MockFleetService implements FleetServiceInterface {
       completedDeliveries: completed,
       totalDeliveries: total,
       remainingDeliveries: remaining,
-      totalDistanceTodayKm: 48.7,
-      estimatedTotalDistanceKm: 112.0,
-      estimatedCompletionTime: '04:30 PM',
+      totalDistanceTodayKm: route?.totalDistanceKm || 48.7,
+      estimatedTotalDistanceKm: Number(((route?.totalDistanceKm || 48.7) * 2.2).toFixed(1)),
+      estimatedCompletionTime: route?.stops.find((s) => !s.completed)?.eta || '04:30 PM',
       onTrackStatus: 'On Track',
       vehicleStatus: 'Healthy',
-      weather: { ...initialWeather },
+      weather,
     };
   }
 
   async markOrderDelivered(orderId: string): Promise<{ success: boolean; orderId: string; nextOrderId?: string }> {
+    // Find stop corresponding to order
+    const backendRoutes = await routeApi.listRoutes();
+    for (const r of backendRoutes) {
+      const stop = (r.stops || []).find((s) => s.order_id === orderId || (s as any).external_order_id === orderId);
+      if (stop) {
+        await routeApi.updateStopStatus(stop.id, { status: 'COMPLETED' });
+        return { success: true, orderId };
+      }
+    }
+    // If not found in stops, update order status directly
+    await orderApi.updateOrder(orderId, { status: 'DELIVERED' });
     return { success: true, orderId };
   }
 
   async reportIssue(issue: Omit<DriverIssue, 'id' | 'timestamp' | 'status'>): Promise<DriverIssue> {
-    const newIssue: DriverIssue = {
+    const created = await eventApi.createEvent({
+      type: 'OTHER',
+      title: `Driver Report: ${issue.type} (${issue.driverName})`,
+      description: issue.description,
+      vehicle_id: issue.vehicleId,
+      metadata: {
+        driver_id: issue.driverId,
+        driver_name: issue.driverName,
+        issue_type: issue.type,
+      },
+    });
+
+    return {
       ...issue,
-      id: `ISSUE-${Date.now().toString().slice(-4)}`,
+      id: created.id,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: 'OPEN',
     };
-    return newIssue;
   }
 
   async triggerVehicleBreakdown(vehicleId: string): Promise<{ vehicleId: string; status: string }> {
+    await vehicleApi.triggerBreakdown(vehicleId, 'Mechanical alternator failure near C-Scheme');
     return { vehicleId, status: 'BROKEN_DOWN' };
   }
 
   async triggerTrafficEvent(corridor: string): Promise<DisruptionEvent> {
-    return {
-      id: `EV-${Date.now().toString().slice(-4)}`,
-      type: 'TRAFFIC',
-      title: `Traffic Congestion on ${corridor}`,
-      description: 'Slow speeds logged by sensors; re-routing corridor.',
-      location: corridor,
-      timestamp: 'Just now',
-      severity: 'WARNING',
-      affectedVehicleIds: ['V04'],
-      affectedOrderIds: ['#1009'],
-      impactDelayMinutes: 14,
-      impactCostInr: 65,
-      resolved: false,
-      reoptimisationTriggered: true,
-    };
+    const res = await api.triggerEvent('TRAFFIC', { title: `Traffic Congestion on ${corridor}` });
+    return res.event;
   }
 
   async triggerWeatherEvent(condition: string, tempC: number): Promise<WeatherData> {
+    await eventApi.simulateEvent({
+      type: 'WEATHER',
+      title: `Weather Alert: ${condition}`,
+      delay_factor: 1.4,
+    });
     return {
       temperatureC: tempC,
       condition,
-      impact: 'Wet surface speed caps applied to Jaipur outer ring',
+      impact: 'Wet surface speed caps applied to Jaipur corridors',
       location: 'Jaipur',
       updatedAt: 'Just now',
     };
   }
 
-  async addUrgentOrder(order: Order = urgentOrderP101): Promise<Order> {
-    return { ...order };
+  async addUrgentOrder(order?: Order): Promise<Order> {
+    const created = await orderApi.createOrder({
+      external_order_id: order?.id || `ORD-${Date.now().toString().slice(-4)}`,
+      customer_name: order?.consignee || 'Emergency Medical Consignee',
+      customer_phone: '+91-9829011188',
+      delivery_lat: order?.lat || 26.852,
+      delivery_lng: order?.lng || 75.805,
+      delivery_address: order?.address || 'Fortis Escorts Hospital, Malviya Nagar',
+      weight_kg: order?.weightKg || 25.0,
+      priority: 'CRITICAL',
+      window_start: order?.timeWindowStart || '10:00',
+      window_end: order?.timeWindowEnd || '13:00',
+    });
+    return {
+      id: created.external_order_id,
+      consignee: created.customer_name,
+      address: created.delivery_address,
+      zone: 'Jaipur',
+      pincode: '302001',
+      lat: created.delivery_lat,
+      lng: created.delivery_lng,
+      weightKg: created.weight_kg,
+      priority: 'CRITICAL',
+      loadType: 'GENERAL',
+      timeWindowStart: created.window_start,
+      timeWindowEnd: created.window_end,
+      eta: '11:15 AM',
+      slaStatus: 'ON_TIME',
+      slaBufferMinutes: 15,
+      assignedVehicleId: '',
+    };
   }
 }
 
-export const fleetService: FleetServiceInterface = new MockFleetService();
+export const fleetService: FleetServiceInterface = new BackendFleetService();

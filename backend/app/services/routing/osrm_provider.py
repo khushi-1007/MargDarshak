@@ -21,14 +21,14 @@ class OSRMRoutingProvider(RoutingProvider):
         return await self.mock_fallback.geocode(address)
 
     async def get_distance_matrix(self, locations: List[Tuple[float, float]]) -> List[List[float]]:
-        if not settings.ROUTING_API_URL:
+        if not settings.ROUTING_API_URL or len(locations) > 25:
             return await self.mock_fallback.get_distance_matrix(locations)
 
         try:
             # Format: {lon1},{lat1};{lon2},{lat2}...
             coords_str = ";".join(f"{lon},{lat}" for lat, lon in locations)
             url = f"{self.base_url}/table/v1/driving/{coords_str}?annotations=distance"
-            async with httpx.AsyncClient(timeout=4.0) as client:
+            async with httpx.AsyncClient(timeout=1.5) as client:
                 res = await client.get(url)
                 if res.status_code == 200:
                     data = res.json()
@@ -39,13 +39,13 @@ class OSRMRoutingProvider(RoutingProvider):
         return await self.mock_fallback.get_distance_matrix(locations)
 
     async def get_duration_matrix(self, locations: List[Tuple[float, float]], traffic_factor: float = 1.0) -> List[List[float]]:
-        if not settings.ROUTING_API_URL:
+        if not settings.ROUTING_API_URL or len(locations) > 25:
             return await self.mock_fallback.get_duration_matrix(locations, traffic_factor=traffic_factor)
 
         try:
             coords_str = ";".join(f"{lon},{lat}" for lat, lon in locations)
             url = f"{self.base_url}/table/v1/driving/{coords_str}?annotations=duration"
-            async with httpx.AsyncClient(timeout=4.0) as client:
+            async with httpx.AsyncClient(timeout=1.5) as client:
                 res = await client.get(url)
                 if res.status_code == 200:
                     data = res.json()

@@ -16,6 +16,12 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 
+const formatDelta = (diff: number) => {
+  if (diff > 0) return `+₹${diff.toLocaleString()}`;
+  if (diff < 0) return `-₹${Math.abs(diff).toLocaleString()}`;
+  return '₹0';
+};
+
 export const WhatIf: React.FC = () => {
   const { triggerDisruption, executeRecoveryAction } = useFleet();
 
@@ -71,7 +77,19 @@ export const WhatIf: React.FC = () => {
     });
   };
 
-  if (!comparison) return null;
+  if (!comparison) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center select-none">
+        <div className="w-14 h-14 rounded-2xl bg-ai-intelligence/15 border border-ai-intelligence/30 flex items-center justify-center">
+          <FlaskConical className="w-7 h-7 text-ai-intelligence animate-pulse" />
+        </div>
+        <div>
+          <h2 className="text-base font-bold text-deep-navy">Computing What-If Simulation Sandbox</h2>
+          <p className="text-xs text-text-secondary mt-1">Executing Google OR-Tools constraint solver on fleet baseline...</p>
+        </div>
+      </div>
+    );
+  }
 
   const { baseline, simulated, recommendation, mitigationStrategy } = comparison;
 
@@ -365,9 +383,11 @@ export const WhatIf: React.FC = () => {
               <div className="p-3 rounded-xl bg-surface-container-low">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase font-bold text-text-muted">Operating Cost</span>
-                  {simulated.totalCostInr > baseline.totalCostInr && (
-                    <span className="text-[10px] font-bold text-status-critical font-mono">
-                      +₹{simulated.totalCostInr - baseline.totalCostInr}
+                  {simulated.totalCostInr !== baseline.totalCostInr && (
+                    <span className={`text-[10px] font-bold font-mono ${
+                      simulated.totalCostInr > baseline.totalCostInr ? 'text-status-critical' : 'text-status-success'
+                    }`}>
+                      {formatDelta(simulated.totalCostInr - baseline.totalCostInr)}
                     </span>
                   )}
                 </div>
@@ -380,9 +400,13 @@ export const WhatIf: React.FC = () => {
               <div className="p-3 rounded-xl bg-surface-container-low">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] uppercase font-bold text-text-muted">Total Distance</span>
-                  {simulated.totalDistanceKm > baseline.totalDistanceKm && (
-                    <span className="text-[10px] font-bold text-status-warning font-mono">
-                      +{simulated.totalDistanceKm - baseline.totalDistanceKm} km
+                  {simulated.totalDistanceKm !== baseline.totalDistanceKm && (
+                    <span className={`text-[10px] font-bold font-mono ${
+                      simulated.totalDistanceKm > baseline.totalDistanceKm ? 'text-status-warning' : 'text-status-success'
+                    }`}>
+                      {simulated.totalDistanceKm > baseline.totalDistanceKm
+                        ? `+${(simulated.totalDistanceKm - baseline.totalDistanceKm).toFixed(1)} km`
+                        : `-${(baseline.totalDistanceKm - simulated.totalDistanceKm).toFixed(1)} km`}
                     </span>
                   )}
                 </div>
@@ -425,7 +449,13 @@ export const WhatIf: React.FC = () => {
                   {simulated.activeVehiclesCount} units
                 </span>
                 <span className="text-[10px] text-text-muted font-mono">
-                  {knobs.removeVehicleV04 ? 'V04 offline' : 'Full deployment'}
+                  {knobs.removeVehicleV04 && !knobs.addStandbyV05
+                    ? 'V04 offline'
+                    : knobs.addStandbyV05 && !knobs.removeVehicleV04
+                    ? 'V05 added'
+                    : knobs.removeVehicleV04 && knobs.addStandbyV05
+                    ? 'V04 replaced by V05'
+                    : 'Full deployment'}
                 </span>
               </div>
 
@@ -457,7 +487,7 @@ export const WhatIf: React.FC = () => {
             Cost & SLA Financial Delta Analysis (INR ₹)
           </h3>
           <span className="text-[11px] font-mono text-text-muted">
-            Variance: ₹{(simulated.totalCostInr - baseline.totalCostInr).toLocaleString()}
+            Variance: {formatDelta(simulated.totalCostInr - baseline.totalCostInr)}
           </span>
         </div>
 
@@ -476,24 +506,30 @@ export const WhatIf: React.FC = () => {
                 <td className="py-2.5 px-3 text-deep-navy font-sans font-medium">Fuel & Energy Burn</td>
                 <td className="py-2.5 px-3 text-right text-text-muted">₹{baseline.fuelCostInr.toLocaleString()}</td>
                 <td className="py-2.5 px-3 text-right text-deep-navy">₹{simulated.fuelCostInr.toLocaleString()}</td>
-                <td className="py-2.5 px-3 text-right text-status-warning font-bold">
-                  +₹{(simulated.fuelCostInr - baseline.fuelCostInr).toLocaleString()}
+                <td className={`py-2.5 px-3 text-right font-bold ${
+                  simulated.fuelCostInr > baseline.fuelCostInr ? 'text-status-warning' : 'text-status-success'
+                }`}>
+                  {formatDelta(simulated.fuelCostInr - baseline.fuelCostInr)}
                 </td>
               </tr>
               <tr className="hover:bg-surface-container-low">
                 <td className="py-2.5 px-3 text-deep-navy font-sans font-medium">Driver Wages & Overtime</td>
                 <td className="py-2.5 px-3 text-right text-text-muted">₹{baseline.wagesInr.toLocaleString()}</td>
                 <td className="py-2.5 px-3 text-right text-deep-navy">₹{simulated.wagesInr.toLocaleString()}</td>
-                <td className="py-2.5 px-3 text-right text-status-critical font-bold">
-                  +₹{(simulated.wagesInr - baseline.wagesInr).toLocaleString()}
+                <td className={`py-2.5 px-3 text-right font-bold ${
+                  simulated.wagesInr > baseline.wagesInr ? 'text-status-critical' : 'text-status-success'
+                }`}>
+                  {formatDelta(simulated.wagesInr - baseline.wagesInr)}
                 </td>
               </tr>
               <tr className="hover:bg-surface-container-low">
                 <td className="py-2.5 px-3 text-deep-navy font-sans font-medium">Asset Maintenance Allocation</td>
                 <td className="py-2.5 px-3 text-right text-text-muted">₹{baseline.maintenanceInr.toLocaleString()}</td>
                 <td className="py-2.5 px-3 text-right text-deep-navy">₹{simulated.maintenanceInr.toLocaleString()}</td>
-                <td className="py-2.5 px-3 text-right text-status-success font-bold">
-                  ₹{(simulated.maintenanceInr - baseline.maintenanceInr).toLocaleString()}
+                <td className={`py-2.5 px-3 text-right font-bold ${
+                  simulated.maintenanceInr > baseline.maintenanceInr ? 'text-status-warning' : 'text-status-success'
+                }`}>
+                  {formatDelta(simulated.maintenanceInr - baseline.maintenanceInr)}
                 </td>
               </tr>
               <tr className="hover:bg-surface-container-low bg-error-container/20">
@@ -504,15 +540,17 @@ export const WhatIf: React.FC = () => {
                 <td className="py-2.5 px-3 text-right text-text-muted">₹{baseline.slaPenaltyInr}</td>
                 <td className="py-2.5 px-3 text-right text-status-critical font-bold">₹{simulated.slaPenaltyInr}</td>
                 <td className="py-2.5 px-3 text-right text-status-critical font-bold">
-                  +₹{simulated.slaPenaltyInr}
+                  {formatDelta(simulated.slaPenaltyInr - baseline.slaPenaltyInr)}
                 </td>
               </tr>
               <tr className="bg-surface-container font-bold text-deep-navy">
                 <td className="py-3 px-3 font-sans">NET TOTAL EXPENDITURE</td>
                 <td className="py-3 px-3 text-right">₹{baseline.totalCostInr.toLocaleString()}</td>
                 <td className="py-3 px-3 text-right text-status-critical">₹{simulated.totalCostInr.toLocaleString()}</td>
-                <td className="py-3 px-3 text-right text-status-critical font-bold">
-                  +₹{(simulated.totalCostInr - baseline.totalCostInr).toLocaleString()}
+                <td className={`py-3 px-3 text-right font-bold ${
+                  simulated.totalCostInr > baseline.totalCostInr ? 'text-status-critical' : 'text-status-success'
+                }`}>
+                  {formatDelta(simulated.totalCostInr - baseline.totalCostInr)}
                 </td>
               </tr>
             </tbody>

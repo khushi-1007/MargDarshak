@@ -476,33 +476,43 @@ This sequence is designed to demonstrate detection, decision, explanation, and r
 > The commands below reflect the intended project setup. Package manifests (`package.json`, `requirements.txt`) will pin exact versions once implementation begins.
 
 ### Prerequisites
-- Node.js (LTS) and npm
+- Node.js 18+ and npm
 - Python 3.11+
-- PostgreSQL with the PostGIS extension
-- An OR-Tools-compatible Python environment
+- An OR-Tools-compatible Python environment (Windows/Linux/macOS)
 
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
+### 1. Backend Setup & Run
 
-### Backend
+Open **Terminal 1**:
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
 
-### Database
-```bash
-# PostgreSQL with PostGIS enabled
-createdb margdarshak
-psql margdarshak -c "CREATE EXTENSION postgis;"
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Seed Jaipur Fleet & Generate Initial Optimized Routes
+python scripts/seed_demo.py
+
+# 3. Start Backend REST API & WebSocket Server (Port 8000)
+uvicorn app.main:app --reload --port 8000
 ```
+*Backend API Docs (Swagger UI)*: `http://localhost:8000/docs`
+*Health Check*: `http://localhost:8000/health`
+*WebSocket Stream*: `ws://localhost:8000/ws/fleet`
+
+### 2. Frontend Setup & Run
+
+Open **Terminal 2**:
+```bash
+cd frontend
+
+# 1. Install dependencies
+npm install
+
+# 2. Start Vite Development Server
+npm run dev
+```
+*Fleet Manager Control Tower*: `http://localhost:3000/` (or `http://localhost:5173/`)
+*Driver Dashboard*: `http://localhost:3000/driver` (or `http://localhost:5173/driver`)
 
 ## Environment Variables
 

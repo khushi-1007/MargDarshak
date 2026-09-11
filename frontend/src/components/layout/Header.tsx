@@ -22,6 +22,7 @@ export const Header: React.FC = () => {
     triggerDisruption,
     events,
     activeDriver,
+    wsStatus,
   } = useFleet();
 
   const criticalCount = events.filter((e) => e.severity === 'CRITICAL' && !e.resolved).length;
@@ -60,11 +61,11 @@ export const Header: React.FC = () => {
 
         {/* Quick Actions & Dispatch Controls (Always Fully Visible) */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Live Sync Badge - Only on wide 2xl screens */}
-          <div className="hidden 2xl:flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container-low border border-border-subtle whitespace-nowrap">
-            <span className="h-2 w-2 rounded-full bg-status-success animate-ping" />
-            <span className="text-[10px] font-semibold text-status-success uppercase tracking-wider">
-              LIVE SYNC
+          {/* Live Sync Badge */}
+          <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded bg-surface-container-low border border-border-subtle whitespace-nowrap" title={`WebSocket Status: ${wsStatus}`}>
+            <span className={`h-2 w-2 rounded-full ${wsStatus === 'CONNECTED' ? 'bg-status-success animate-ping' : wsStatus === 'RECONNECTING' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`} />
+            <span className={`text-[10px] font-semibold uppercase tracking-wider ${wsStatus === 'CONNECTED' ? 'text-status-success' : wsStatus === 'RECONNECTING' ? 'text-amber-600' : 'text-red-500'}`}>
+              {wsStatus === 'CONNECTED' ? 'LIVE WS SYNC' : wsStatus === 'RECONNECTING' ? 'RECONNECTING' : 'WS OFFLINE'}
             </span>
           </div>
 

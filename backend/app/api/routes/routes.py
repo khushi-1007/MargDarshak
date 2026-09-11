@@ -41,7 +41,7 @@ def list_routes(
     if optimisation_run_id:
         query = query.filter(Route.optimisation_run_id == optimisation_run_id)
 
-    routes = query.all()
+    routes = query.order_by(Route.updated_at.desc()).all()
     return ApiResponse.ok([RouteResponse.model_validate(r) for r in routes])
 
 

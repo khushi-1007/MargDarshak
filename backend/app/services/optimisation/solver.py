@@ -120,8 +120,8 @@ class VRPTSolver:
         )
 
         # 3. Time Windows & Driver Hours
-        # Service durations: depot = 0 mins, orders = service_duration_minutes
-        service_times = [0] + [o.service_duration_minutes for o in self.orders]
+        # Service durations: depot = 0 mins, orders = service_duration_minutes (defensive fallback to 15)
+        service_times = [0] + [(int(o.service_duration_minutes) if o.service_duration_minutes is not None else 15) for o in self.orders]
         dur_matrix_int = [
             [int(round(dur_matrix_mins[i][j])) + service_times[i] for j in range(num_nodes)]
             for i in range(num_nodes)

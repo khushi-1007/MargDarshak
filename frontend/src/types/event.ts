@@ -24,4 +24,8 @@ export interface DisruptionEvent {
   reoptimisationTriggered: boolean;
   recoveryRecommendation?: string;
   alternativeActions?: string[];
+  lat?: number;
+  lng?: number;
+  radiusKm?: number;
+  speedPenaltyFactor?: number;
 }
