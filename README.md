@@ -1,662 +1,1281 @@
 # MargDarshak
-### Intelligent Dynamic Fleet Optimisation
 
-**"When reality changes, the route changes with it."**
+> **When reality changes, the route should change with it.**
 
-MargDarshak is a dynamic fleet decision engine built for **MUJ HACKX 4.0 — Logistics PS #2: Intelligent Fleet Route Optimisation**. It continuously re-optimises a fleet's delivery plan as real-world conditions — traffic, weather, breakdowns, and urgent orders — change during execution, instead of producing a single static route and hoping the world cooperates.
+**MargDarshak** is an intelligent fleet-level decision and route optimisation platform that continuously re-optimises delivery plans as operational conditions change.
+
+Instead of optimising a single driver's route in isolation, MargDarshak optimises the **entire fleet** while considering real operational constraints such as vehicle capacity, driver hours, delivery time windows, delivery priority, traffic, weather, vehicle breakdowns, operating cost, and SLA impact.
+
+---
+
+## 🚚 What is MargDarshak?
+
+Traditional fleet planning often assumes that the plan created in the morning will remain valid throughout the day.
+
+Reality is different.
+
+A fleet may face:
+
+- Traffic congestion
+- Vehicle breakdowns
+- Weather disruptions
+- Road closures
+- New urgent orders
+- Driver-hour constraints
+- Vehicle capacity limitations
+- Tight delivery windows
+- Increasing SLA pressure
+
+A static route plan quickly becomes outdated.
+
+MargDarshak continuously closes this loop:
+
+```text
+PLAN
+  ↓
+MONITOR
+  ↓
+EVENT
+  ↓
+RE-OPTIMISE
+  ↓
+EXPLAIN
+  ↓
+EXECUTE
+  ↓
+MONITOR AGAIN
+````
+
+### Product Principle
 
 > **Optimization decides. AI explains. Events trigger. Data measures.**
 
 ---
 
-## Table of Contents
+# 🎯 Problem Statement
 
-- [Overview](#overview)
-- [The Problem](#the-problem)
-- [Our Solution](#our-solution)
-- [Core Workflow](#core-workflow)
-- [Dynamic Re-optimisation & Cascading Failure Handling](#dynamic-re-optimisation--cascading-failure-handling)
-- [Event & Weather/Traffic Integration](#event--weathertraffic-integration)
-- [Route Versioning](#route-versioning)
-- [Application Modules](#application-modules)
-- [Screens](#screens)
-- [System Architecture](#system-architecture)
-- [Technology Stack](#technology-stack)
-- [Optimisation Engine](#optimisation-engine)
-- [AI Layer](#ai-layer)
-- [Database Entities](#database-entities)
-- [Dataset Strategy](#dataset-strategy)
-- [Target Users & Market](#target-users--market)
-- [USP & Competitive Positioning](#usp--competitive-positioning)
-- [Business Model & Value](#business-model--value)
-- [KPIs & Evaluation](#kpis--evaluation)
-- [Demo Scenario](#demo-scenario)
-- [36-Hour MVP Scope](#36-hour-mvp-scope)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [Project Structure](#project-structure)
-- [Testing](#testing)
-- [Limitations](#limitations)
-- [Roadmap](#roadmap)
-- [Judge Questions & Answers](#judge-questions--answers)
-- [Team](#team)
-- [License](#license)
+**MUJ HACKX 4.0 — PS #2: Intelligent Fleet Route Optimisation**
+
+The challenge is to build a fleet-wide routing system that dynamically adapts multi-stop plans as operational conditions change while balancing:
+
+* Traffic
+* Weather
+* Delivery priority
+* Vehicle capacity
+* Driver working hours
+* Delivery time windows
+* Fuel / operating cost
+* Tolls
+* Overtime
+* SLA impact
+
+MargDarshak addresses this as a **fleet decision problem**, not simply a navigation problem.
 
 ---
 
-## Overview
+# 💡 Our Solution
 
-Most route planning tools solve a snapshot: given today's orders and today's map, compute a route. MargDarshak treats routing as a **continuous decision process**. The moment an order, a road, a vehicle, or the weather changes, the plan is re-evaluated and — where the numbers justify it — updated, with the dispatcher told exactly why.
+MargDarshak continuously maintains the best feasible fleet plan.
 
-MargDarshak is not a maps product and not a full enterprise Transportation Management System (TMS). It is a focused **decision and re-optimisation layer** that sits on top of a fleet's operational data and answers one question, continuously: *given everything we now know, what is the best feasible plan?*
+When an operational event occurs:
 
-## The Problem
+```text
+Traffic / Weather / Breakdown / Critical Order
+                    ↓
+             Event Handler
+                    ↓
+          Update Operating State
+                    ↓
+             Re-optimisation
+                    ↓
+              Feasibility Check
+                    ↓
+             Updated Fleet Plan
+                    ↓
+          WebSocket / Live UI Update
+                    ↓
+             Dispatcher + Driver
+```
 
-Fleet dispatchers managing multi-vehicle, multi-stop deliveries run into the same failure mode repeatedly:
+The system can determine whether the resulting fleet state is:
 
-- Static route plans are built once and go stale within minutes of real-world disruption.
-- Manual re-dispatching during an incident is slow and error-prone.
-- Vehicle capacity is either underused or silently overloaded.
-- An urgent order forces a dispatcher to manually rework an existing schedule.
-- Traffic and weather shift ETAs, but the plan doesn't shift with them.
-- A single vehicle breakdown can cascade into missed SLAs across several routes.
-- Delivery time windows create SLA pressure that isn't reflected in the plan.
-- Fuel, toll, and overtime costs are rarely optimised jointly with distance.
-- Dispatchers are told a route changed, but not *why*.
-- What was planned and what actually happened are never compared, so nothing improves.
+* `FEASIBLE`
+* `PARTIALLY_FEASIBLE`
+* `INFEASIBLE`
 
-## Our Solution
-
-MargDarshak addresses this with four cooperating layers:
-
-1. **A deterministic optimisation core** that generates feasible, cost-aware multi-vehicle routes under real operational constraints (capacity, time windows, driver hours, priority).
-2. **An event engine** that ingests traffic, weather, breakdowns, and priority-order signals through a single normalized interface and determines which routes are affected.
-3. **A re-optimisation loop** that regenerates the fleet plan when an event materially changes feasibility or cost — including cascading scenarios where a fallback vehicle also becomes unavailable.
-4. **An AI explanation layer** that translates the optimiser's decisions into plain-language reasoning for dispatchers, without ever being the thing that computes the route.
-
-This separation is intentional: **the optimiser is deterministic and auditable; the AI is explanatory, not authoritative.**
+This means the system does not hide operational failure. It explicitly communicates when the current fleet cannot serve every order and recommends mitigation.
 
 ---
 
-## Core Workflow
+# ⭐ Key Differentiator
 
-```mermaid
-flowchart TD
-    A[Dispatcher imports orders via CSV/API] --> B[Dispatcher configures fleet: vehicles, drivers, capacity, cost/km]
-    B --> C[Geocoding: addresses to coordinates]
-    C --> D[Routing layer: distance/time matrix]
-    D --> E[Optimisation engine: OR-Tools CVRP/VRPTW]
-    E --> F[Feasible multi-vehicle route plan]
-    F --> G[Dispatcher control tower: live map, ETA, cost, SLA risk]
-    G --> H[Fleet dispatched]
-    H --> I{Event occurs?}
-    I -- Traffic / Weather / Breakdown / Priority order --> J[Event engine assesses impact]
-    J --> K[Affected vehicles & orders identified]
-    K --> L[Re-optimisation triggered]
-    L --> M[New route version generated]
-    M --> N[Driver receives resequencing update]
-    N --> O[AI explanation service describes the change]
-    I -- No event --> P[Execution continues]
-    O --> Q[Delivery status recorded]
-    P --> Q
-    Q --> R[Plan-vs-actual analytics]
-    R --> S[Historical deviations feed future ETA/cost estimates]
-```
+MargDarshak is **not another navigation application**.
 
-Orders carry order ID, pickup/delivery location, package weight, priority, delivery time window, and vehicle/load requirements. Vehicles carry type, capacity, cost/km, fuel/energy type, assigned driver, remaining driver hours, and availability status.
+Navigation systems primarily answer:
 
-## Dynamic Re-optimisation & Cascading Failure Handling
+> "What is the best route for this vehicle?"
 
-MargDarshak does not assume a single fallback vehicle will always be available. When a vehicle drops out, the system re-optimises using the *current* fleet state — and if the new state also fails, it re-optimises again rather than silently degrading the plan.
+MargDarshak answers:
 
-**Example progression:**
+> **"What should the entire fleet do now, given the current operational constraints?"**
 
-```
-Initial state:
-  V1 → A, B, C
-  V2 → D, E, F
-  V3 → G, H, I
+### Our Core Wedge
 
-V2 breaks down
-  → D, E, F reassigned to V1/V3 if capacity and time windows allow
-
-V3 also becomes unavailable
-  → System re-optimises again against the remaining fleet
-```
-
-The re-optimisation can resolve to one of three outcomes:
-
-| Outcome | Description |
-|---|---|
-| **Fully feasible** | All orders can still be served within constraints. |
-| **Partially feasible** | High-priority orders are protected; lower-priority orders may be delayed. |
-| **No feasible solution** | The system explains why and recommends concrete actions: activate a standby vehicle, request an external carrier, extend a delivery window, split a delivery, or reprioritise orders. |
-
-**MargDarshak never silently violates a hard constraint.** If capacity, time window, or driver-hour limits cannot all be satisfied, the system reports infeasibility explicitly rather than returning a plan that quietly breaks the rules. This behavior is referred to as **Dynamic Operational Resilience**.
-
-## Event & Weather/Traffic Integration
-
-All disruption signals — regardless of source — enter through one normalized event interface, so the optimisation and explanation layers don't need to know where an event came from.
-
-```mermaid
-flowchart LR
-    A1[Weather API] --> N[Normalized Event Interface]
-    A2[Traffic API] --> N
-    A3[Fleet Telemetry] --> N
-    A4[Dispatcher-Triggered Event] --> N
-    A5[Internal Event Simulator] --> N
-    N --> B[Event Engine]
-    B --> C[Affected Routes Identified]
-    C --> D[Travel Time / Risk / Constraint Update]
-    D --> E[Re-optimisation]
-    E --> F[New Route Version]
-```
-
-For the hackathon MVP, weather and traffic are exercised through a **deterministic event simulator** rather than live third-party feeds, which guarantees a reproducible demo. The simulator and any future live Weather/Traffic API integration share the same normalized event interface, so plugging in a real feed later does not require changes to the optimisation or explanation logic.
-
-**MVP:** Simulate Traffic, Simulate Heavy Rain, Simulate Road Closure, Simulate Vehicle Breakdown, Add Priority Order — all deterministic, dispatcher-triggered.
-**Planned:** Live weather/traffic API ingestion via the same event interface.
-**Future:** Fleet telemetry-driven automatic event detection (e.g. GPS-inferred breakdowns).
-
-## Route Versioning
-
-Routes are never overwritten — each recalculation produces a new, immutable version tied to the event that caused it. This gives auditability, a route-change history, and the data needed for plan-vs-actual analytics.
-
-```
-Vehicle V02:
-  v1: A → B → C → D                (initial plan)
-  v2: A → C → B → D                (event: traffic congestion)
-  v3: A → X → C → B → D            (event: priority order inserted)
-```
-
-Each version records the triggering event, the affected stops, and the resulting distance/cost/ETA deltas.
-
-## Application Modules
-
-| # | Module | Description | Status |
-|---|---|---|---|
-| 1 | Authentication & Roles | Dispatcher / Driver / Admin roles | MVP |
-| 2 | Fleet Management | Create and manage vehicles and drivers | MVP |
-| 3 | Order Management | Upload, import, and validate delivery orders | MVP |
-| 4 | Routing & Optimisation | Generate multi-vehicle, constraint-aware plans | MVP |
-| 5 | Live Map / Control Tower | Vehicles, routes, stops, and alerts on a map | MVP |
-| 6 | Event Engine | Traffic, weather, breakdown, road closure, priority order | MVP |
-| 7 | Dynamic Re-optimisation | Regenerate a feasible plan on event impact | MVP |
-| 8 | Driver Guidance | Updated route, next stop, ETA | MVP |
-| 9 | What-If Simulator | Test hypothetical fleet decisions before committing | Planned (Should-Have) |
-| 10 | Analytics | Cost, SLA, utilisation, plan-vs-actual | MVP (basic) / Planned (advanced) |
-| 11 | AI Explanation | Plain-language reasoning for routing decisions | Planned (Should-Have) |
-
-## Screens
-
-- **Dashboard** — fleet KPIs, active alerts, order queue, on-time %, current cost.
-- **Live Map** — vehicle markers, route polylines, stops, active incidents.
-- **Vehicle Panel** — capacity, current load, driver hours, active route, ETA.
-- **Route Details** — ordered stops, time windows, distance, cost, route status.
-- **Event Center** — traffic, weather, breakdown, priority-order events and resulting route changes.
-- **What-If Simulator** *(Planned)* — scenario controls with side-by-side plan comparison.
-- **Analytics** *(Planned, advanced)* — planned vs. actual, cost, SLA, utilisation trends.
-- **AI Explanation** *(Planned)* — natural-language answers to questions like "Why was V3 selected?"
+* Fleet-level optimisation
+* Constraint-aware planning
+* Event-driven re-planning
+* Cascading failure handling
+* Priority-aware order insertion
+* Explainable optimisation decisions
+* Real-time dispatcher control tower
+* Driver execution view
+* Non-destructive what-if simulation
+* Plan-vs-actual analytics
 
 ---
 
-## System Architecture
+# 🧠 Core Architecture
 
-```mermaid
-flowchart TB
-    subgraph Frontend
-        FE[Next.js + TypeScript + Tailwind + shadcn/ui<br/>MapLibre GL / Leaflet]
-    end
-    subgraph Backend
-        API[FastAPI + Pydantic]
-        SVC1[Optimizer Service]
-        SVC2[Routing Service]
-        SVC3[Event Service]
-        SVC4[Analytics Service]
-        SVC5[AI Explanation Service]
-    end
-    subgraph Data
-        DB[(PostgreSQL + PostGIS)]
-    end
-    subgraph External
-        OSM[OpenStreetMap]
-        OSRM[OSRM / GraphHopper]
-        WX[Weather API]
-        TR[Traffic API]
-        LLM[LLM API]
-    end
+```text
+                         ┌─────────────────────────┐
+                         │       FRONTEND          │
+                         │ Fleet Control Tower     │
+                         │ Dispatcher + Driver UI  │
+                         └────────────┬────────────┘
+                                      │
+                               REST + WebSocket
+                                      │
+                                      ▼
+                         ┌─────────────────────────┐
+                         │        FASTAPI          │
+                         │       API Layer         │
+                         └────────────┬────────────┘
+                                      │
+             ┌────────────────────────┼────────────────────────┐
+             │                        │                        │
+             ▼                        ▼                        ▼
+      ┌─────────────┐        ┌──────────────┐        ┌──────────────┐
+      │  Database   │        │ Event Engine │        │  Analytics   │
+      │ SQLAlchemy  │        │ Reoptimiser  │        │   Services   │
+      └─────────────┘        └───────┬──────┘        └──────────────┘
+                                     │
+                                     ▼
+                          ┌──────────────────────┐
+                          │     Google OR-Tools  │
+                          │      CVRPTW Solver   │
+                          └──────────┬───────────┘
+                                     │
+                          ┌──────────┴──────────┐
+                          │                     │
+                          ▼                     ▼
+                    ┌─────────────┐      ┌──────────────┐
+                    │     OSRM    │      │ OpenWeather  │
+                    │ Real Routes │      │ Real Weather │
+                    └─────────────┘      └──────────────┘
+                          │                     │
+                          └──────────┬──────────┘
+                                     │
+                                     ▼
+                           RouteDecisionFacts
+                                     │
+                                     ▼
+                            ┌─────────────────┐
+                            │    Sarvam AI    │
+                            │  AI Explanation │
+                            └─────────────────┘
 
-    FE <--> API
-    API --> SVC1
-    API --> SVC2
-    API --> SVC3
-    API --> SVC4
-    API --> SVC5
-    SVC1 --> DB
-    SVC2 --> DB
-    SVC3 --> DB
-    SVC4 --> DB
-    SVC2 --> OSM
-    SVC2 --> OSRM
-    SVC3 --> WX
-    SVC3 --> TR
-    SVC5 --> LLM
+Fallback providers are used only when external services
+are unavailable or fail.
 ```
-
-- **Frontend** renders the dashboard, live map, and control-tower views, and communicates with the backend over REST and WebSockets for real-time route updates.
-- **Backend** exposes a FastAPI service layer split by responsibility: optimisation, routing/geocoding, event handling, analytics, and AI explanation — kept as separate services so the deterministic core (optimizer, routing) is never entangled with the AI layer.
-- **Database** uses PostgreSQL with PostGIS for geospatial queries (nearest-stop lookups, geofencing for event impact).
-- **External services** — OpenStreetMap for geographic data, OSRM/GraphHopper for distance/time matrices, and a pluggable Weather/Traffic API behind the normalized event interface.
-
-## Technology Stack
-
-| Layer | Technology | Status |
-|---|---|---|
-| Frontend | Next.js, TypeScript, Tailwind CSS, shadcn/ui | MVP |
-| Map rendering | MapLibre GL JS or Leaflet | MVP |
-| Backend | Python, FastAPI, Pydantic | MVP |
-| ORM | SQLAlchemy | MVP |
-| Database | PostgreSQL, PostGIS | MVP |
-| Optimisation | Google OR-Tools | MVP |
-| Geographic data | OpenStreetMap | MVP |
-| Routing engine | OSRM or GraphHopper | MVP |
-| Real-time updates | WebSockets | MVP |
-| Caching / pub-sub | Redis | Planned |
-| AI / LLM | LLM API for explanations, summaries, dispatcher Q&A | Planned |
-| Auth | JWT-based role authentication (Auth.js or custom) | MVP |
-| Deployment | Vercel (frontend), Railway/Render/AWS (backend), Supabase/Neon (Postgres) | Planned |
-| Testing | Pytest (backend), Vitest (frontend unit), Playwright (E2E) | MVP (Pytest, Vitest) / Planned (Playwright) |
-
-This is the intended engineering stack for the hackathon build; items marked **Planned** are part of the architecture but are not required for the 36-hour MVP to function end-to-end.
-
-## Optimisation Engine
-
-MargDarshak uses **Google OR-Tools** as its optimisation engine rather than building a custom VRP solver from scratch — the goal is a credible, working decision layer, not novel solver research.
-
-**Problem classes targeted:**
-- Capacitated Vehicle Routing Problem (CVRP)
-- Vehicle Routing Problem with Time Windows (VRPTW)
-- Multi-vehicle routing with priority handling
-
-**Optimisation flow:**
-
-```
-Current fleet/order state
-   → constraint set (capacity, time windows, driver hours, priority)
-   → OR-Tools solve
-   → feasible route plan
-   → [event occurs]
-   → impact assessment
-   → re-optimisation
-   → new route version
-```
-
-The engine is tuned to produce **high-quality feasible solutions quickly enough for interactive re-optimisation**. It does not claim globally optimal routes — OR-Tools' metaheuristic solvers return strong feasible solutions within a time budget, and that time/quality trade-off will be documented against the configuration actually used.
-
-## AI Layer
-
-The guiding principle is strict separation of concerns:
-
-> **Optimization decides. AI explains. Events trigger. Data measures.**
-
-The LLM layer is **never** used to compute distance, capacity, ETA, feasibility, vehicle assignment, or cost — those remain fully deterministic, sitting in the optimiser and routing services. The AI layer is scoped to:
-
-- Explaining why a route changed, in plain language, grounded in the actual route-version diff and triggering event.
-- Summarising fleet status for a dispatcher.
-- Answering dispatcher questions such as "Why was V3 selected?" by reading from route/event data rather than generating figures independently.
-
-| Capability | Status |
-|---|---|
-| Route-change explanation from route-version diffs | Planned |
-| Fleet summary generation | Planned |
-| Dispatcher Q&A over route/event data | Planned |
-| Predictive ETA intelligence | Future |
-
-## Database Entities
-
-| Entity | Key Fields |
-|---|---|
-| `users` | id, name, role (dispatcher/driver/admin), credentials |
-| `drivers` | id, name, license info, remaining hours, assigned vehicle |
-| `vehicles` | id, vehicle number, type, capacity, cost/km, fuel/energy type, driver_id, status, current_location |
-| `orders` | id, customer, pickup coordinates, drop coordinates, weight, priority, time window, status |
-| `locations` | id, address, latitude, longitude |
-| `routes` | id, vehicle_id, optimisation_run_id, distance, duration, cost, status, created_at |
-| `route_stops` | id, route_id, order_id, sequence, eta |
-| `route_versions` | id, route_id, version_number, triggering_event_id, created_at |
-| `events` | id, type (traffic/weather/breakdown/priority/closure), affected_area, payload, created_at |
-| `traffic_events` | id, event_id, affected_road_segment, delay_estimate |
-| `optimisation_runs` | id, triggered_by, input_snapshot, output_route_ids, runtime, created_at |
-| `deliveries` | id, order_id, route_stop_id, actual_arrival, status |
 
 ---
 
-## Dataset Strategy
+# 🏗️ Technology Stack
 
-MargDarshak's prototype uses a deliberate hybrid data strategy rather than relying on a single dataset, since commercial fleet/delivery telemetry is generally proprietary and not available for a hackathon build.
+## Backend
 
-1. **Synthetic operational data** — orders, fleet, drivers, capacities, costs, priorities, time windows, breakdowns, and traffic/weather scenarios, generated programmatically to exercise the full workflow.
-2. **Real geographic data** — OpenStreetMap road and location data for a demo city, **Jaipur**, using representative delivery areas such as Malviya Nagar, Mansarovar, C-Scheme, Vaishali Nagar, Jagatpura, Raja Park, Tonk Road, Sitapura, Vidhyadhar Nagar, and Sodala. These are geographic reference points for realistic routing, not real customers.
-3. **Public benchmark datasets** — Solomon VRPTW and CVRPLIB/CVRP benchmarks, used to validate optimisation quality, feasibility rate, and runtime independent of the synthetic demo data.
+* Python
+* FastAPI
+* Uvicorn
+* SQLAlchemy 2.x
+* SQLite for local/demo persistence
+* PostgreSQL-compatible architecture
+* Google OR-Tools
+* Pydantic
+* WebSockets
+* HTTPX
+* Sarvam AI SDK
 
-> The prototype uses controlled synthetic operational scenarios over realistic geographic data because commercial delivery/fleet telemetry is generally proprietary. Algorithmic evaluation is additionally performed using public routing benchmarks.
+## Frontend
 
-## Target Users & Market
+* React
+* TypeScript
+* Vite
+* React-Leaflet
+* Tailwind CSS
 
-**Primary users:** fleet managers, dispatchers, logistics operators, 3PL providers, regional fleet operators, SME fleet owners.
+## External Services
 
-**Potential verticals:** e-commerce and last-mile delivery, FMCG distribution, field service, pharma logistics, spare-parts delivery, regional transportation, EV delivery fleets.
-
-**Strongest initial segment for the hackathon MVP:** regional and SME fleet operators managing multiple vehicles and time-sensitive deliveries — a segment large enough to matter but underserved by heavyweight enterprise TMS platforms.
-
-## USP & Competitive Positioning
-
-**Primary USP:**
-> Continuous fleet-level re-optimisation under real-world disruptions.
-
-**Secondary differentiators:**
-1. Fleet-level rather than single-vehicle optimisation.
-2. Constraint-aware routing (capacity, time windows, driver hours, priority).
-3. Event-driven re-optimisation, not manual re-dispatch.
-4. Cascading failure / resilience handling.
-5. Joint cost + SLA optimisation instead of distance-only routing.
-6. Explainable routing decisions.
-7. What-if scenario simulation.
-8. Plan-vs-actual feedback loop.
-
-**Positioning statement:**
-> MargDarshak is not just a route planner; it is a dynamic fleet decision engine that adapts the entire delivery plan as operational reality changes.
-
-**On competitors:** the logistics and routing space already includes established players — Locus, FarEye, Shipsy, OptimoRoute, and toolkits like Google OR-Tools itself. MargDarshak does not claim to be more mature or more accurate than these enterprise products. Its differentiation is a focused **event → decision → explanation** loop, demonstrated end-to-end:
-
-```
-Traffic spike detected
-  → affected route identified
-  → alternative plans evaluated
-  → new route selected
-  → dispatcher sees: why it changed, ETA impact, cost impact, SLA impact
-```
-
-MargDarshak is positioned as a focused decision layer and prototype, not a replacement for Google Maps or a full enterprise TMS.
-
-## Business Model & Value
-
-**Illustrative SaaS tiers** (not final pricing):
-
-| Tier | Target | Includes |
-|---|---|---|
-| Starter | Small fleets | Basic optimisation, basic dashboard, CSV import |
-| Growth | Regional fleets | APIs, advanced analytics, what-if simulation, dynamic events |
-| Enterprise | Large fleets | TMS/ERP integration, telematics, custom constraints, SSO, private deployment, enterprise support |
-
-**Illustrative pricing models:** per active vehicle/month, per optimisation run, per delivery stop, or a hybrid subscription-plus-usage model. Exact figures are not fixed and would be validated against real customer economics.
-
-**Value delivered:**
-
-- **Cost savings** — fewer kilometres, lower fuel and toll spend, reduced overtime, lower cost per delivery.
-- **Service improvement** — fewer late deliveries, better SLA adherence, lower ETA deviation.
-- **Asset utilisation** — better vehicle utilisation, reduced idle capacity, fewer empty/inefficient kilometres.
-- **Labour efficiency** — fewer manual dispatcher interventions, faster response to disruptions.
-
-## KPIs & Evaluation
-
-**North Star KPI:**
-> Cost-to-Serve per Delivery
-
-**Secondary North Star:**
-> On-Time Delivery Rate at Minimum Operating Cost
-
-**Supporting KPIs:** total route distance, total operating cost, fuel cost, toll cost, overtime, on-time delivery %, vehicle utilisation, late deliveries, empty kilometres, ETA accuracy, reroute count, dispatcher intervention count.
-
-**Evaluation is layered rather than a single "accuracy" number:**
-
-| Layer | Metrics |
-|---|---|
-| Optimisation | Feasibility rate, total distance, total cost, runtime, late deliveries, vehicle utilisation, comparison to baseline, benchmark gap on Solomon/CVRPLIB where applicable |
-| Event handling | Successful re-routing rate, constraint-violation rate, recovery time, SLA preservation |
-| ETA | MAE/MAPE where actual execution data exists; no prediction-accuracy claims otherwise |
-| AI explanation | Factual consistency with underlying route data, absence of unsupported claims, correctness of stated reasons |
+* **Sarvam AI** — grounded natural-language explanations
+* **OpenWeather** — live weather events/data
+* **OSRM** — real road-network routing
+* Optional Redis support for future infrastructure/caching needs
 
 ---
 
-## Demo Scenario
+# ⚙️ How the Optimisation Works
 
-The hackathon demo is built around a single reproducible narrative:
+MargDarshak uses a **Capacitated Vehicle Routing Problem with Time Windows (CVRPTW)** approach.
 
-**Starting state:** 4 vehicles, 20 orders, mixed time windows, some priority orders. The optimiser generates an initial plan.
+The solver considers:
 
-| Step | Event | System Response |
-|---|---|---|
-| 1 | Traffic congestion on an active route | Affected route identified, plan re-optimised |
-| 2 | Vehicle V03 breaks down | Its orders redistributed across remaining fleet |
-| 3 | Fallback vehicle V04 also becomes unavailable | System re-optimises again against the new fleet state (cascading failure handling) |
-| 4 | An urgent priority order arrives | Inserted into the best feasible route without violating constraints |
-| 5 | Dispatcher asks "what if I remove V02?" | What-If Simulator returns cost, SLA, distance, and utilisation impact without committing the change |
+### Hard / Operational Constraints
 
-This sequence is designed to demonstrate detection, decision, explanation, and resilience within a single, reproducible run.
+* Vehicle capacity
+* Delivery time windows
+* Driver maximum working hours
+* Vehicle availability
+* Vehicle eligibility
+* Depot start/end constraints
 
-## 36-Hour MVP Scope
+### Objective Factors
 
-**Must Have**
-- Multi-vehicle optimisation (capacity + time windows)
-- Cost function combining distance, fuel, and time
-- Live map of vehicles and routes
-- Dynamic rerouting on event
-- Traffic and vehicle-breakdown event simulator
-- Priority-order insertion into an active route
-- Route version history
-- Basic analytics dashboard
+The optimisation objective incorporates:
 
-**Should Have**
-- Cascading failure handling
-- What-if simulation
-- AI-generated route-change explanations
-- Weather as an additional event source
+* Distance
+* Fuel / operating cost
+* Driver wages
+* Overtime
+* SLA / lateness penalties
+* Priority-aware order handling
 
-**Nice to Have**
-- Live weather API integration
-- Live traffic API integration
-- AI dispatcher chat interface
-- Predictive ETA
-- Driver-facing mobile interface
-
-**Explicitly Out of Scope for the Hackathon**
-- Custom research-grade VRP solver
-- Full enterprise TMS feature set
-- Hardware/GPS integration
-- Complex ML forecasting
-- Unnecessary microservice sprawl
-- Blockchain
-- Full-scale enterprise authentication/permissions system
+The system therefore optimises **operational cost and feasibility**, not simply shortest distance.
 
 ---
 
-## Getting Started
+# 🔄 Dynamic Re-optimisation
 
-> The commands below reflect the intended project setup. Package manifests (`package.json`, `requirements.txt`) will pin exact versions once implementation begins.
+One of the core features of MargDarshak is continuous re-planning.
 
-### Prerequisites
-- Node.js 18+ and npm
-- Python 3.11+
-- An OR-Tools-compatible Python environment (Windows/Linux/macOS)
+### Example
 
-### 1. Backend Setup & Run
+A baseline plan is created:
 
-Open **Terminal 1**:
-```bash
-cd backend
-
-# 1. Install dependencies
-pip install -r requirements.txt
-
-# 2. Seed Jaipur Fleet & Generate Initial Optimized Routes
-python scripts/seed_demo.py
-
-# 3. Start Backend REST API & WebSocket Server (Port 8000)
-uvicorn app.main:app --reload --port 8000
+```text
+V01 → 5 orders
+V02 → 4 orders
+V03 → 5 orders
+V04 → 3 orders
+V05 → 3 orders
 ```
-*Backend API Docs (Swagger UI)*: `http://localhost:8000/docs`
-*Health Check*: `http://localhost:8000/health`
-*WebSocket Stream*: `ws://localhost:8000/ws/fleet`
 
-### 2. Frontend Setup & Run
+Then V03 breaks down.
 
-Open **Terminal 2**:
-```bash
-cd frontend
+Instead of manually redispatching orders:
 
-# 1. Install dependencies
-npm install
-
-# 2. Start Vite Development Server
-npm run dev
+```text
+V03 BREAKDOWN
+     ↓
+Affected orders identified
+     ↓
+Remaining fleet evaluated
+     ↓
+OR-Tools re-optimisation
+     ↓
+Orders reassigned
+     ↓
+New routes generated
+     ↓
+WebSocket update
+     ↓
+Dashboard + Driver update
 ```
-*Fleet Manager Control Tower*: `http://localhost:3000/` (or `http://localhost:5173/`)
-*Driver Dashboard*: `http://localhost:3000/driver` (or `http://localhost:5173/driver`)
 
-## Environment Variables
+---
+
+# 🚨 Cascading Failure Handling
+
+MargDarshak supports multiple simultaneous fleet disruptions.
+
+Example:
+
+```text
+V03 breaks
+   ↓
+Re-optimise
+   ↓
+V04 breaks
+   ↓
+Re-optimise again
+```
+
+The system can return:
+
+### FEASIBLE
+
+All required orders can still be served.
+
+### PARTIALLY_FEASIBLE
+
+The remaining fleet cannot serve everything within the constraints.
+
+The system protects important orders and identifies orders requiring mitigation.
+
+Possible recommendations include:
+
+* Deploy backup vehicle
+* Use external courier
+* Defer lower-priority deliveries
+
+### INFEASIBLE
+
+No valid solution is available under the current constraints.
+
+---
+
+# 🚑 Priority Order Insertion
+
+Urgent orders can arrive after the fleet is already operating.
+
+Example:
+
+```text
+New Order
+Priority: CRITICAL
+Type: ICU Oxygen Cylinder
+```
+
+MargDarshak dynamically inserts the order into the fleet plan while considering:
+
+* Priority
+* Vehicle capacity
+* Delivery window
+* Driver hours
+* Existing route state
+* Additional cost
+* SLA impact
+
+The route is then updated in real time.
+
+---
+
+# 🌦️ Real Weather Integration
+
+MargDarshak integrates with **OpenWeather**.
+
+Flow:
+
+```text
+OpenWeather
+     ↓
+Current Weather
+     ↓
+Weather Event / Impact Assessment
+     ↓
+Travel-time Impact
+     ↓
+Re-optimisation
+     ↓
+Updated Fleet Plan
+```
+
+The backend currently exposes a live weather endpoint:
+
+```text
+GET /api/v1/events/weather/current
+```
+
+The weather integration has a deterministic fallback for external-service failures.
+
+---
+
+# 🗺️ Real Road Routing
+
+MargDarshak uses **OSRM** for real road-network distance and duration data.
+
+Configured through:
 
 ```env
-# Backend
-DATABASE_URL=postgresql://user:password@localhost:5432/margdarshak
-JWT_SECRET=your-jwt-secret
-
-# AI layer
-LLM_API_KEY=your-llm-api-key
-
-# Routing / mapping
-ROUTING_API_KEY=your-osrm-or-graphhopper-key   # if using a hosted routing service
-
-# Optional event sources
-WEATHER_API_KEY=your-weather-api-key
-TRAFFIC_API_KEY=your-traffic-api-key
-REDIS_URL=redis://localhost:6379
+ROUTING_API_URL=https://router.project-osrm.org
 ```
 
-## Project Structure
+The backend retrieves:
 
+* Road distance
+* Travel duration
+* Routing matrices
+* Route geometry where applicable
+
+These values are then passed into the optimisation engine.
+
+If the external routing service becomes unavailable, the system can fall back to the deterministic routing provider.
+
+---
+
+# 🤖 Explainable AI with Sarvam
+
+The AI layer is intentionally separated from the optimisation engine.
+
+### Important Architectural Rule
+
+> **The LLM never performs optimisation.**
+
+OR-Tools determines:
+
+* Assignments
+* Feasibility
+* Cost
+* Distance
+* ETA-related metrics
+* Constraint satisfaction
+
+Sarvam AI receives structured `RouteDecisionFacts` and explains the resulting decision.
+
+### Example
+
+```text
+Why did the route change?
+
+Vehicle V03 became unavailable because of a breakdown.
+Its affected orders were reassigned to the remaining active fleet
+based on capacity, driver-hour availability, SLA requirements,
+and incremental routing cost.
 ```
-margdarshak/
-├── frontend/
-│   ├── app/
-│   ├── components/
-│   ├── lib/
-│   └── types/
+
+This keeps AI explanations grounded in actual system facts.
+
+---
+
+# 🧩 Deterministic Fallback Architecture
+
+External services are not allowed to become a single point of failure.
+
+Normal path:
+
+```text
+Sarvam AI       → Real API
+OpenWeather     → Real API
+OSRM            → Real API
+```
+
+Failure path:
+
+```text
+Sarvam failure
+       ↓
+Deterministic AI explanation
+
+OpenWeather failure
+       ↓
+Mock weather provider
+
+OSRM failure
+       ↓
+Mock routing provider
+```
+
+Fallbacks are **resilience mechanisms**, not the normal execution path.
+
+---
+
+# 🖥️ Product Interfaces
+
+## 1. Fleet Control Tower
+
+The primary dispatcher dashboard provides:
+
+* Live fleet KPIs
+* Vehicle state
+* Active orders
+* Interactive map
+* Route visualization
+* Event stream
+* AI insights
+* Route change information
+* Analytics
+* Re-optimisation controls
+
+---
+
+## 2. Live Operations Map
+
+The control tower displays:
+
+* Vehicle positions
+* Depot
+* Delivery stops
+* Route polylines
+* Disruption markers
+* Route changes
+* Current fleet state
+
+The map is powered by real backend state.
+
+---
+
+## 3. Driver Console
+
+The driver view provides:
+
+* Assigned vehicle
+* Assigned stops
+* Delivery sequence
+* Current stop
+* ETA
+* Navigation
+* Delivery status
+* Delivery confirmation
+* Issue reporting
+* Dispatcher communication
+
+The driver interface is connected to the same backend state used by the dispatcher.
+
+---
+
+## 4. What-If Simulation
+
+The what-if engine creates a **non-destructive simulation**.
+
+Example:
+
+```text
+What if Vehicle V02 becomes unavailable?
+```
+
+The backend:
+
+1. Clones the current state
+2. Applies the scenario
+3. Runs optimisation
+4. Compares baseline vs scenario
+5. Returns deltas
+6. Leaves production state unchanged
+
+The frontend displays:
+
+* Plan A
+* Plan B
+* Cost delta
+* Distance delta
+* SLA delta
+* Unassigned orders
+* Recommended mitigation
+
+---
+
+# 🔌 API Configuration
+
+Create a local `.env` file in the backend.
+
+Example:
+
+```env
+DATABASE_URL=sqlite:///./margdarshak.db
+
+JWT_SECRET=your_generated_secret
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+
+ENVIRONMENT=development
+DEBUG=True
+
+SARVAM_API_KEY=your_sarvam_key
+SARVAM_MODEL=sarvam-105b-conversations
+
+WEATHER_API_KEY=your_openweather_key
+
+ROUTING_API_URL=https://router.project-osrm.org
+
+REDIS_URL=
+
+SOLVER_TIME_LIMIT_SECONDS=15
+```
+
+### Important
+
+Never commit the real `.env` file.
+
+The repository should contain only a safe `.env.example`.
+
+---
+
+# 🔐 Security
+
+API credentials are intentionally kept server-side.
+
+Never expose these in frontend code:
+
+```text
+SARVAM_API_KEY
+WEATHER_API_KEY
+JWT_SECRET
+```
+
+The frontend communicates with the backend, and the backend communicates with the external services.
+
+The repository uses `.gitignore` rules to exclude:
+
+```text
+.env
+.env.*
+*.db
+*.sqlite3
+__pycache__/
+.pytest_cache/
+venv/
+.venv/
+node_modules/
+.next/
+```
+
+---
+
+# 📁 Project Structure
+
+A simplified structure:
+
+```text
+MargDarshak/
+│
 ├── backend/
 │   ├── app/
 │   │   ├── api/
 │   │   ├── models/
 │   │   ├── schemas/
 │   │   ├── services/
-│   │   │   ├── optimizer/
+│   │   │   ├── optimisation/
 │   │   │   ├── routing/
+│   │   │   ├── weather/
+│   │   │   ├── traffic/
 │   │   │   ├── events/
+│   │   │   ├── simulation/
 │   │   │   ├── analytics/
-│   │   │   └── ai/
-│   │   └── db/
-│   └── tests/
-├── data/
-│   ├── orders.csv
-│   ├── vehicles.csv
-│   ├── drivers.csv
-│   └── scenarios/
-├── docs/
+│   │   │   ├── ai/
+│   │   │   └── notifications/
+│   │   ├── config.py
+│   │   └── main.py
+│   │
+│   ├── tests/
+│   ├── scripts/
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── README.md
+│
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── ...
+│
+├── .gitignore
 └── README.md
 ```
 
-## Testing
+---
 
-| Layer | Tool | Scope |
-|---|---|---|
-| Backend | Pytest | Optimiser constraints, event-impact logic, API endpoints |
-| Frontend unit | Vitest | Component and utility logic |
-| End-to-end | Playwright | Dashboard, live map, and event-simulation flows |
+# 🚀 Getting Started
 
-Optimisation quality is additionally validated against public **Solomon VRPTW** and **CVRPLIB** benchmark instances to measure feasibility rate, cost, and runtime independent of the synthetic demo data.
+## Prerequisites
 
-## Limitations
+Install:
 
-- The MVP demonstrates disruption handling through a deterministic event simulator, not live third-party traffic/weather feeds.
-- Routing distance/time data depends on OpenStreetMap coverage and the chosen routing engine's accuracy for the demo region.
-- OR-Tools returns strong feasible solutions within a time budget; it does not guarantee a globally optimal route for every instance.
-- Demo orders, fleets, and disruption events are synthetic; no real fleet telemetry or customer data is used in the prototype.
-- The AI explanation layer, when implemented, is scoped to describing decisions already made by the optimiser — it does not independently verify real-world outcomes.
+* Python 3.11+
+* Node.js 18+
+* npm
 
-## Roadmap
+External API credentials:
 
-**Post-hackathon (Future):**
-- Live weather and traffic API integration through the existing normalized event interface
-- Fleet telemetry-driven automatic event detection
-- Predictive ETA modelling from accumulated plan-vs-actual data
-- Multi-depot optimisation
-- EV fleet-specific constraints (charging windows, range)
-- Field-service and spare-parts logistics variants
-- TMS/ERP and telematics integrations for enterprise deployment
-- AI dispatcher chat with broader operational Q&A
+* Sarvam AI API key
+* OpenWeather API key
 
-## Judge Questions & Answers
+OSRM can use the configured public endpoint for development/demo usage.
 
-**Why not Google Maps?**
-Maps products compute point-to-point routes; they don't manage fleet-level capacity, time-window, and driver constraints, or re-optimise a whole plan when one vehicle fails.
+---
 
-**Why not just shortest path?**
-Shortest path ignores capacity, time windows, driver hours, and cost — a fleet plan has to satisfy all of these jointly, which is why this is framed as a constrained optimisation problem, not a pathfinding problem.
+# 1. Clone the Repository
 
-**Is the route globally optimal?**
-No claim of global optimality is made. OR-Tools is configured to return high-quality feasible solutions within a runtime budget suitable for interactive re-optimisation.
+```bash
+git clone https://github.com/khushi-1007/MargDarshak.git
+cd MargDarshak
+```
 
-**Why use OR-Tools instead of writing a custom solver?**
-Building a competitive VRP solver from scratch is a research problem in itself; OR-Tools is a proven, well-supported library that lets the team focus engineering effort on the decision/event layer that is the actual differentiator.
+---
 
-**Why use AI at all if it doesn't compute the route?**
-Dispatchers need to trust and act on route changes quickly. The AI layer turns a route-version diff into a plain-language reason, which is a real operational need distinct from computing the route itself.
+# 2. Backend Setup
 
-**What happens if two backup vehicles also fail?**
-The system re-optimises again against whichever vehicles remain, following the cascading failure handling behavior described above, rather than assuming a single fallback is always sufficient.
+```bash
+cd backend
+```
 
-**What happens if no feasible route exists?**
-The system reports infeasibility explicitly and recommends concrete actions — activating a standby vehicle, requesting an external carrier, extending a delivery window, splitting a delivery, or reprioritising orders.
+Create a virtual environment:
 
-**How does weather change the route?**
-A weather event enters the normalized event interface, updates affected travel-time/risk parameters, and triggers re-optimisation exactly like a traffic or breakdown event.
+### Windows
 
-**Where does the data come from? Is it real?**
-Delivery, fleet, and disruption data are synthetic and generated for the demo; road and geographic data come from OpenStreetMap for a real city (Jaipur); optimisation quality is additionally validated against public VRP benchmarks.
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+```
 
-**How do you evaluate performance?**
-Separately by layer: optimisation quality against benchmarks, event-handling success and recovery time, ETA accuracy where actual data exists, and factual consistency of AI explanations against the underlying route data.
+### Linux / macOS
 
-**How does this save money?**
-By jointly optimising distance, fuel, tolls, and overtime rather than distance alone, and by reducing manual dispatcher intervention time during disruptions.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-**Who pays for it?**
-The intended customer is the fleet operator (SME/regional first), via a per-vehicle or usage-based SaaS subscription.
+Install dependencies:
 
-**Who are your competitors?**
-Locus, FarEye, Shipsy, and OptimoRoute operate in adjacent or overlapping space, alongside toolkits like OR-Tools itself. MargDarshak is positioned as a focused decision layer, not a claim to be more mature than these established products.
+```bash
+pip install -r requirements.txt
+```
 
-**How does it scale?**
-The optimisation and event services are structured independently of the frontend, so re-optimisation runs can be scaled horizontally as fleet size and event volume grow; this is an architectural intention, not a benchmarked result at hackathon stage.
+Create `.env`:
 
-**How do you prevent route thrashing (re-optimising too often)?**
-Re-optimisation is intended to trigger only when an event materially changes feasibility or cost beyond a defined threshold — this threshold logic is part of the planned event-engine design.
+```text
+backend/.env
+```
 
-**What if traffic/weather data is wrong?**
-Because the optimiser consumes traffic/weather as one input among several deterministic constraints, an inaccurate signal affects ETA/cost estimates for that event but does not violate hard constraints like capacity or time windows.
+Use the configuration shown above.
 
-**Why would an SME use this instead of an enterprise TMS?**
-Enterprise TMS platforms are heavyweight and expensive to deploy; MargDarshak targets the specific pain point of dynamic re-optimisation for fleets that don't need (or can't justify) a full TMS.
+---
 
-**How will live integrations work?**
-Live weather/traffic APIs and fleet telemetry are designed to plug into the same normalized event interface the simulator already uses, so no changes to the optimisation or explanation logic are required.
+# 3. Start Backend
 
-**What is genuinely innovative here?**
-Not the VRP solver itself, but the combination of fleet-level constraint-aware optimisation, cascading-failure-aware re-optimisation, and AI-grounded explanation, presented as one coherent decision loop.
+From the `backend` directory:
 
-## Team
+```bash
+uvicorn app.main:app --reload
+```
 
-*Team member names and roles to be added.*
+Backend:
+
+```text
+http://127.0.0.1:8000
+```
+
+Swagger / OpenAPI:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Health check:
+
+```text
+http://127.0.0.1:8000/health
+```
+
+---
+
+# 4. Frontend Setup
+
+Open another terminal:
+
+```bash
+cd frontend
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run development server:
+
+```bash
+npm run dev
+```
+
+The frontend should communicate with the backend rather than external services directly.
+
+---
+
+# 🧪 Testing
+
+## Backend
+
+Run the complete backend test suite:
+
+```bash
+pytest tests -v
+```
+
+### Current verified result
+
+```text
+52 passed
+0 failed
+0 skipped
+```
+
+The suite covers areas including:
+
+* AI explanation
+* Authentication
+* RBAC
+* Analytics
+* Benchmark parsing
+* Solver scalability
+* Capacity constraints
+* Driver hours
+* Priority protection
+* Orders
+* Providers and fallbacks
+* Re-optimisation
+* Security
+* Simulation
+* WebSockets
+* Vehicle lifecycle
+
+---
+
+# 🌐 Frontend Build Verification
+
+Build the frontend:
+
+```bash
+npm run build
+```
+
+The latest full-system verification completed the frontend build successfully with zero TypeScript/build errors.
+
+---
+
+# 🔄 End-to-End Demo Flow
+
+The complete verified demo flow is:
+
+```text
+1. Login
+2. Open Fleet Control Tower
+3. Load active fleet
+4. Load orders
+5. View live map
+6. Fetch live weather
+7. Run initial optimisation
+8. Display routes
+9. Trigger traffic disruption
+10. Observe automatic re-optimisation
+11. Break Vehicle V03
+12. Observe order reassignment
+13. Break Vehicle V04
+14. Observe PARTIALLY_FEASIBLE state
+15. Add critical ICU oxygen order
+16. Observe priority insertion
+17. Ask why the route changed
+18. Receive Sarvam AI explanation
+19. Open What-If simulation
+20. Simulate a vehicle/road disruption
+21. Verify production state remains unchanged
+22. Open Driver Console
+23. Confirm driver route updates
+24. Mark delivery complete
+25. Observe WebSocket state synchronization
+```
+
+---
+
+# 📡 WebSocket
+
+Fleet updates are delivered through:
+
+```text
+/ws/fleet
+```
+
+The WebSocket layer supports live events such as:
+
+* Connection handshake
+* Event creation
+* Optimisation completion
+* Route updates
+* Fleet state changes
+* Driver updates
+
+The frontend automatically processes real-time updates and reconnects when needed.
+
+---
+
+# 📊 Analytics
+
+MargDarshak can measure:
+
+* Total distance
+* Total operating cost
+* Delivery cost
+* SLA compliance
+* On-time delivery
+* Late deliveries
+* Vehicle utilisation
+* Driver hours
+* Route changes
+* ETA deviation
+* Operational events
+
+The analytics layer is database-backed rather than based on static frontend values.
+
+---
+
+# 🧪 Demo / Seed Data
+
+The hackathon demo uses a synthetic Jaipur operational environment.
+
+Examples include:
+
+* Jaipur depot
+* V01–V05 demo vehicles
+* Synthetic delivery orders
+* Jaipur locations such as:
+
+  * Malviya Nagar
+  * C-Scheme
+  * Tonk Road
+  * Sitapura
+  * Vaishali Nagar
+  * Mansarovar
+  * Raja Park
+
+This synthetic data is used for reproducible demonstrations and testing.
+
+It is **not presented as proprietary customer data**.
+
+---
+
+# 📈 Performance
+
+The verified optimisation benchmark includes:
+
+| Orders | Vehicles | Result   |
+| -----: | -------: | -------- |
+|     10 |        3 | Feasible |
+|     20 |        5 | Feasible |
+|     50 |       10 | Feasible |
+|    100 |       20 | Feasible |
+
+Actual runtime varies depending on:
+
+* Network latency
+* Routing provider response
+* Scenario complexity
+* Solver time limits
+* System hardware
+
+---
+
+# 🛡️ Resilience
+
+MargDarshak is designed to degrade gracefully.
+
+### If Sarvam fails
+
+```text
+Sarvam unavailable
+       ↓
+Deterministic explainer
+       ↓
+Operational system remains available
+```
+
+### If OpenWeather fails
+
+```text
+OpenWeather unavailable
+       ↓
+Mock Weather Provider
+       ↓
+Event system remains operational
+```
+
+### If OSRM fails
+
+```text
+OSRM unavailable
+       ↓
+Mock Routing Provider
+       ↓
+Optimisation remains available
+```
+
+This ensures external APIs are not a single point of failure.
+
+---
+
+# 💼 Target Customers
+
+MargDarshak is designed for organisations operating delivery or service fleets.
+
+Potential customers include:
+
+* Regional fleet operators
+* 3PL providers
+* E-commerce logistics
+* D2C delivery fleets
+* FMCG distribution
+* Pharmaceutical logistics
+* Cold-chain operations
+* Field-service organisations
+
+A natural initial focus is fleets where operational disruptions directly create cost and SLA pressure.
+
+---
+
+# 💰 Business Model
+
+A subscription model is envisioned around:
+
+> **Per active vehicle / month**
+
+### Starter
+
+For small fleets:
+
+* Basic planning
+* Fleet dashboard
+
+### Growth
+
+For regional fleet operators:
+
+* Dynamic re-optimisation
+* What-if simulation
+* AI explanations
+* Operational analytics
+
+### Enterprise
+
+For larger operators:
+
+* TMS / ERP integrations
+* Telematics
+* Custom workflows
+* Advanced enterprise deployment
+
+---
+
+# 📈 Go-To-Market
+
+A simple adoption path:
+
+```text
+1. Free route audit
+          ↓
+2. Compare customer plan vs MargDarshak
+          ↓
+3. Demonstrate measurable operational improvement
+          ↓
+4. Convert to subscription
+```
+
+The core value metric is:
+
+> **Cost-to-Serve per Delivery while meeting the promised SLA**
+
+---
+
+# 🎯 Impact
+
+### Without MargDarshak
+
+* Manual dispatcher calls
+* Guesswork during breakdowns
+* Static morning plans
+* Opaque route changes
+* Missed SLAs
+* Unplanned overtime
+* Inefficient fleet utilisation
+
+### With MargDarshak
+
+* Automated fleet re-optimisation
+* Instant order redistribution
+* Constraint-aware allocation
+* Priority protection
+* Explainable decisions
+* Real-time dispatcher visibility
+* Driver synchronisation
+* Continuous adaptation
+
+---
+
+# 🆚 Positioning
+
+MargDarshak acknowledges that route optimisation is not a new problem.
+
+The differentiation is in **how the fleet responds when the world changes**.
+
+| Alternative               | Typical Gap                             | MargDarshak                       |
+| ------------------------- | --------------------------------------- | --------------------------------- |
+| Navigation tools          | Limited fleet decision logic            | Fleet-level optimisation          |
+| Spreadsheets              | Manual / static                         | Event-driven re-planning          |
+| Enterprise TMS            | Can be complex/heavy for smaller fleets | Focused operational control tower |
+| Single-route optimisation | Vehicle-centric                         | Entire fleet optimisation         |
+
+MargDarshak is not trying to replace every logistics platform.
+
+Its core wedge is:
+
+> **Continuous fleet-level decision-making under changing operational constraints.**
+
+---
+
+# 🔬 Explainability Principle
+
+A major architectural principle is:
+
+```text
+OR-Tools
+   ↓
+Authoritative decision
+   ↓
+Structured RouteDecisionFacts
+   ↓
+Sarvam AI
+   ↓
+Human-readable explanation
+```
+
+This prevents the LLM from becoming the source of truth for operational decisions.
+
+The AI explains what the optimisation engine already decided.
+
+---
+
+# 🔒 Security Principles
+
+* API secrets remain server-side
+* `.env` excluded from Git
+* JWT signing secrets remain backend-only
+* API keys are never sent to the frontend
+* Authentication and RBAC protect sensitive endpoints
+* Error logs sanitize sensitive credentials
+* Frontend uses backend API contracts
+* What-if simulations are isolated from production state
+
+---
+
+# 🧭 Future Roadmap
+
+Potential future improvements include:
+
+### Phase 1
+
+* Production-grade routing provider
+* Vehicle telematics integration
+* Real GPS tracking
+* Better historical analytics
+
+### Phase 2
+
+* Predictive ETA
+* Demand forecasting
+* Driver behaviour analytics
+* Automated capacity planning
+
+### Phase 3
+
+* Multi-depot optimisation
+* Cross-region fleet coordination
+* TMS / ERP integrations
+* Advanced enterprise integrations
+* Predictive disruption handling
+
+---
+
+# ⚠️ Current Limitations
+
+### Public OSRM Endpoint
+
+The current development setup uses:
+
+```text
+https://router.project-osrm.org
+```
+
+This is suitable for development/demo use but is a shared public routing service.
+
+For production deployment, a managed or self-hosted routing infrastructure should be used.
+
+### Sarvam Quota
+
+Live AI explanations require:
+
+* Valid Sarvam credentials
+* Available API quota
+* Network connectivity
+
+A deterministic fallback protects the operational workflow when Sarvam is unavailable.
+
+### Synthetic Demo Data
+
+The hackathon environment uses synthetic Jaipur fleet/order data for reproducibility.
+
+Production deployments would connect to customer operational data sources.
+
+---
+
+# ✅ Current Verification Status
+
+The latest full-system QA verified:
+
+```text
+Backend startup             ✅
+Frontend startup            ✅
+Frontend build              ✅
+52/52 backend tests         ✅
+Integration suites          ✅
+22/22 browser demo steps    ✅
+Sarvam live API             ✅
+OpenWeather live API        ✅
+OSRM live API               ✅
+OR-Tools optimisation       ✅
+Database persistence        ✅
+WebSockets                  ✅
+Authentication              ✅
+RBAC                        ✅
+What-if isolation           ✅
+Driver console              ✅
+Live map                    ✅
+No frontend hardcoding      ✅
+No API secrets in frontend  ✅
+```
+
+---
+
+# 👥 Team
+
+**Team:** Kasukabe Defence Group
+**Team ID:** 014
+**Hackathon:** MUJ HACKX 4.0
+**Problem Statement:** PS #2 — Intelligent Fleet Route Optimisation
+
+---
+
+# 📚 References
+
+* Google OR-Tools Vehicle Routing Problem
+* IBEF India Logistics market research
+* Locus
+* FarEye
+* Shipsy
+
+---
+
+# 🏁 Final Message
+
+> **We don't just optimise routes.**
+>
+> **We optimise how the entire fleet responds when reality changes.**
+>
+> **When reality changes, the route should change with it.**
+
+---
 
 ## License
 
-*No license has been finalized for this project yet.*
+This project is currently intended as a hackathon / prototype implementation.
+
+Add an explicit open-source license before distributing the project publicly if required.
+
+```
+```
