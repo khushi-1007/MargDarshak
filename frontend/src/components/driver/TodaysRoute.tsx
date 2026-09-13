@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, Circle, MapPin, Clock, ArrowRight, ShieldAlert, Sparkles, Navigation } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface TodaysRouteProps {
   onOpenFullRoute: () => void;
@@ -8,6 +9,7 @@ interface TodaysRouteProps {
 
 export const TodaysRoute: React.FC<TodaysRouteProps> = ({ onOpenFullRoute }) => {
   const { activeDriverRoute, activeDriver, currentStopIndex } = useFleet();
+  const { t } = useTranslation();
 
   const stops = activeDriverRoute?.stops || [];
 
@@ -17,13 +19,13 @@ export const TodaysRoute: React.FC<TodaysRouteProps> = ({ onOpenFullRoute }) => 
       <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-1.5">
-            <h2 className="text-sm font-bold text-deep-navy">Today's Route</h2>
+            <h2 className="text-sm font-bold text-deep-navy">{t('driver.todaysRoute')}</h2>
             <span className="px-1.5 py-0.2 rounded bg-primary/10 text-primary font-mono text-[10px] font-bold">
               {activeDriverRoute?.id ? (activeDriverRoute.id.length > 8 ? 'R-01' : activeDriverRoute.id) : 'R-V01'}
             </span>
           </div>
           <p className="text-[11px] text-text-muted mt-0.5">
-            {stops.filter((s) => s.completed).length} of {stops.length} stops completed
+            {stops.filter((s) => s.completed).length} / {stops.length} {t('driver.stopsCompleted')}
           </p>
         </div>
 
@@ -47,14 +49,14 @@ export const TodaysRoute: React.FC<TodaysRouteProps> = ({ onOpenFullRoute }) => 
           {/* Card */}
           <div className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-deep-navy">1. Depot (Start)</span>
+              <span className="font-bold text-deep-navy">1. {t('driver.depotStart')}</span>
               <span className="text-[10px] font-mono text-text-muted">08:00 AM</span>
             </div>
             <p className="text-[11px] text-text-secondary mt-0.5 truncate">
               {activeDriver.depot || 'Sitapura Logistics Hub, Jaipur'}
             </p>
             <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-status-success">
-              <span>Completed</span>
+              <span>{t('statuses.completed')}</span>
             </div>
           </div>
         </div>
@@ -111,12 +113,12 @@ export const TodaysRoute: React.FC<TodaysRouteProps> = ({ onOpenFullRoute }) => 
                     </span>
                     {stop.isPriority && (
                       <span className="px-1.5 py-0.2 rounded bg-red-100 text-status-critical font-mono text-[9px] font-bold">
-                        URGENT
+                        {t('statuses.urgent')}
                       </span>
                     )}
                     {stop.absorbedFromVehicleId && (
                       <span className="px-1.5 py-0.2 rounded bg-purple-100 text-ai-intelligence font-mono text-[9px] font-bold">
-                        ABSORBED
+                        {t('driver.absorbed')}
                       </span>
                     )}
                   </div>
@@ -143,12 +145,12 @@ export const TodaysRoute: React.FC<TodaysRouteProps> = ({ onOpenFullRoute }) => 
                         : 'bg-slate-100 text-slate-500'
                     }`}
                   >
-                    {isCompleted ? 'Completed' : isCurrent ? 'Current Stop' : 'Upcoming'}
+                    {isCompleted ? t('statuses.completed') : isCurrent ? t('driver.currentStop') : t('driver.upcoming')}
                   </span>
 
                   {isCurrent && (
                     <span className="text-[10px] font-bold text-primary-container flex items-center gap-1">
-                      <Navigation className="w-2.5 h-2.5" /> Next Destination
+                      <Navigation className="w-2.5 h-2.5" /> {t('driver.nextDestination')}
                     </span>
                   )}
                 </div>
@@ -165,14 +167,14 @@ export const TodaysRoute: React.FC<TodaysRouteProps> = ({ onOpenFullRoute }) => 
 
           <div className="flex-1 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-deep-navy">Depot (Return)</span>
+              <span className="font-bold text-deep-navy">{stops.length + 2}. {t('driver.depotReturn')}</span>
               <span className="text-[10px] font-mono text-text-muted">05:00 PM</span>
             </div>
             <p className="text-[11px] text-text-secondary mt-0.5 truncate">
               {activeDriver.depot || 'Sitapura Logistics Hub, Jaipur'}
             </p>
             <div className="mt-1 text-[10px] text-text-muted font-medium">
-              Upcoming • Final Hub Check-in
+              {t('driver.upcoming')} • {t('driver.finalHubCheckin')}
             </div>
           </div>
         </div>
@@ -185,7 +187,7 @@ export const TodaysRoute: React.FC<TodaysRouteProps> = ({ onOpenFullRoute }) => 
           type="button"
           className="w-full py-2.5 px-3 rounded-xl bg-surface-container-high hover:bg-surface-container text-deep-navy text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-98 shadow-xs"
         >
-          <span>VIEW FULL ROUTE</span>
+          <span>{t('driver.viewFullRoute')}</span>
           <ArrowRight className="w-3.5 h-3.5 text-primary" />
         </button>
       </div>

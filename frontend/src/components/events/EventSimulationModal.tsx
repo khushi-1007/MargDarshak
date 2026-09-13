@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 import {
   Zap,
   AlertTriangle,
@@ -25,6 +26,7 @@ export const EventSimulationModal: React.FC = () => {
     resetToBaseline,
     isOptimising,
   } = useFleet();
+  const { t } = useTranslation();
 
   if (!simulationModalOpen) return null;
 
@@ -54,9 +56,9 @@ export const EventSimulationModal: React.FC = () => {
               <Zap className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-deep-navy">Operational Stress-Testing Lab</h3>
+              <h3 className="font-bold text-base text-deep-navy">{t('modals.simulationTitle')}</h3>
               <p className="text-xs text-text-muted">
-                Trigger real-world disruptions to observe MargDarshak deterministic re-solver
+                {t('modals.selectScenarioType')}
               </p>
             </div>
           </div>
@@ -102,7 +104,7 @@ export const EventSimulationModal: React.FC = () => {
               className="py-1.5 px-3 bg-white hover:bg-surface-container text-text-secondary rounded-lg text-xs font-medium border border-purple-200 flex items-center gap-1 transition-colors"
             >
               <RotateCcw className="w-3 h-3" />
-              <span>Reset</span>
+              <span>{t('common.reset')}</span>
             </button>
           </div>
         </div>
@@ -110,7 +112,7 @@ export const EventSimulationModal: React.FC = () => {
         {/* Individual Disruption Event Triggers */}
         <div className="flex flex-col gap-2">
           <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-            Or Trigger Individual Operational Events
+            {t('modals.triggerScenario')}
           </span>
 
           {/* Event 1: Traffic Bottleneck */}
@@ -126,7 +128,7 @@ export const EventSimulationModal: React.FC = () => {
                 <Compass className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-deep-navy">Traffic Disruption (Malviya Nagar)</span>
+                <span className="text-xs font-bold text-deep-navy">{t('events.TRAFFIC')}</span>
                 <span className="text-[11px] text-text-muted mt-0.5">
                   Simulate speed drop to 12 km/h on Calgiri Marg. Observes +8m delta rerouting.
                 </span>
@@ -148,7 +150,7 @@ export const EventSimulationModal: React.FC = () => {
                 <PackagePlus className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-deep-navy">Urgent Order Insertion (P-101)</span>
+                <span className="text-xs font-bold text-deep-navy">{t('events.URGENT_ORDER')}</span>
                 <span className="text-[11px] text-text-muted mt-0.5">
                   Emergency surgical parts for Fortis Escorts Hospital (Deadline 12:30 PM).
                 </span>
@@ -170,7 +172,7 @@ export const EventSimulationModal: React.FC = () => {
                 <AlertOctagon className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-deep-navy">Vehicle V03 Breakdown (C-Scheme)</span>
+                <span className="text-xs font-bold text-deep-navy">{t('events.VEHICLE_BREAKDOWN')} (V03)</span>
                 <span className="text-[11px] text-text-muted mt-0.5">
                   Alternator failure. 3 orders reassigned between V01 and V04.
                 </span>
@@ -193,7 +195,7 @@ export const EventSimulationModal: React.FC = () => {
               </div>
               <div className="flex flex-col">
                 <span className="text-xs font-bold text-status-critical">
-                  Cascading Failure: 2nd Breakdown (V01)
+                  {t('events.CASCADING_BREAKDOWN')} (V01)
                 </span>
                 <span className="text-[11px] text-deep-navy mt-0.5">
                   Overwhelms fleet capacity. Demonstrates Green / Yellow / Red order classification.
@@ -216,7 +218,7 @@ export const EventSimulationModal: React.FC = () => {
                 <CloudRain className="w-4 h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-deep-navy">Heavy Monsoon Ingestion</span>
+                <span className="text-xs font-bold text-deep-navy">{t('events.WEATHER')}</span>
                 <span className="text-[11px] text-text-muted mt-0.5">
                   +15% travel time penalty applied to wet road corridors.
                 </span>
@@ -232,7 +234,7 @@ export const EventSimulationModal: React.FC = () => {
             onClick={() => setSimulationModalOpen(false)}
             className="px-3.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-xs font-semibold text-deep-navy transition-colors"
           >
-            Close
+            {t('common.close')}
           </button>
         </div>
       </div>

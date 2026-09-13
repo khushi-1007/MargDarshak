@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Radio, Phone, X, ShieldCheck, Check, MessageSquare, Send } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface DispatcherModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface DispatcherModalProps {
 
 export const DispatcherModal: React.FC<DispatcherModalProps> = ({ isOpen, onClose }) => {
   const { dispatcher, activeDriver } = useFleet();
+  const { t } = useTranslation();
 
   const [message, setMessage] = useState<string>('');
   const [msgSent, setMsgSent] = useState<boolean>(false);
@@ -43,8 +45,8 @@ export const DispatcherModal: React.FC<DispatcherModalProps> = ({ isOpen, onClos
               <Radio className="w-4 h-4 animate-pulse" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white">Central Dispatch Desk</h3>
-              <p className="text-[11px] text-slate-400">Jaipur Route Management Tower</p>
+              <h3 className="font-bold text-sm text-white">{t('driver.centralDispatchDesk')}</h3>
+              <p className="text-[11px] text-slate-400">{t('driver.jaipurRouteTower')}</p>
             </div>
           </div>
           <button
@@ -66,7 +68,7 @@ export const DispatcherModal: React.FC<DispatcherModalProps> = ({ isOpen, onClos
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-deep-navy text-sm">{dispatcher.name}</span>
                   <span className="px-1.5 py-0.2 rounded-full bg-status-success/15 text-status-success font-semibold text-[10px]">
-                    ● {dispatcher.status}
+                    ● {dispatcher.status === 'ONLINE' ? t('driver.online') : dispatcher.status}
                   </span>
                 </div>
                 <div className="text-[11px] text-text-secondary mt-0.5">{dispatcher.role}</div>
@@ -79,20 +81,20 @@ export const DispatcherModal: React.FC<DispatcherModalProps> = ({ isOpen, onClos
           <div className="grid grid-cols-2 gap-2">
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
               <span className="text-[10px] text-text-muted uppercase font-semibold">
-                Direct Hotline
+                {t('driver.directHotline')}
               </span>
               <div className="font-mono font-bold text-deep-navy mt-1">{dispatcher.phone}</div>
               <a
                 href={`tel:${dispatcher.phone}`}
                 className="mt-2 text-center py-1.5 rounded-lg bg-primary-container text-white text-[11px] font-bold hover:bg-primary transition-colors"
               >
-                Call Hotline
+                {t('driver.callHotline')}
               </a>
             </div>
 
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
               <span className="text-[10px] text-text-muted uppercase font-semibold">
-                Radio Channel
+                {t('driver.radioChannel')}
               </span>
               <div className="font-mono font-bold text-deep-navy mt-1 truncate">
                 {dispatcher.radioChannel}
@@ -101,7 +103,7 @@ export const DispatcherModal: React.FC<DispatcherModalProps> = ({ isOpen, onClos
                 onClick={handleCopyRadio}
                 className="mt-2 text-center py-1.5 rounded-lg bg-white border border-border-subtle text-deep-navy text-[11px] font-bold hover:bg-slate-100 transition-colors"
               >
-                {copiedRadio ? 'Channel Copied!' : 'Copy Frequency'}
+                {copiedRadio ? t('driver.channelCopied') : t('driver.copyFrequency')}
               </button>
             </div>
           </div>
@@ -109,9 +111,9 @@ export const DispatcherModal: React.FC<DispatcherModalProps> = ({ isOpen, onClos
           {/* Instant Dispatcher Message */}
           <form onSubmit={handleSendMessage} className="flex flex-col gap-2 pt-1 border-t border-border-subtle">
             <label className="font-semibold text-deep-navy flex items-center justify-between">
-              <span>Quick Telemetry Ping / Message</span>
+              <span>{t('driver.quickTelemetryPing')}</span>
               <span className="text-[10px] font-normal text-text-muted">
-                From {activeDriver.name}
+                {t('driver.from')} {activeDriver.name}
               </span>
             </label>
             <div className="flex gap-2">
@@ -119,7 +121,7 @@ export const DispatcherModal: React.FC<DispatcherModalProps> = ({ isOpen, onClos
                 type="text"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="e.g. Arrived at Gate 2, waiting for security sign-off..."
+                placeholder={t('driver.messagePlaceholder')}
                 className="flex-1 px-3 py-2 rounded-xl border border-border-subtle bg-bg-canvas text-deep-navy text-xs focus:ring-2 focus:ring-primary-container focus:outline-none"
               />
               <button
@@ -128,12 +130,12 @@ export const DispatcherModal: React.FC<DispatcherModalProps> = ({ isOpen, onClos
                 className="px-3 py-2 rounded-xl bg-primary-container hover:bg-primary text-white font-bold text-xs flex items-center gap-1 transition-colors disabled:opacity-50"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Send</span>
+                <span>{t('common.send')}</span>
               </button>
             </div>
             {msgSent && (
               <span className="text-[11px] font-semibold text-status-success flex items-center gap-1 animate-in fade-in">
-                <Check className="w-3.5 h-3.5" /> Message transmitted to Central Dispatch Tower!
+                <Check className="w-3.5 h-3.5" /> {t('driver.msgTransmitted')}
               </span>
             )}
           </form>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../context/FleetContext';
+import { useTranslation } from '../context/LanguageContext';
 import { api } from '../services/api';
 import { WhatIfKnobs, WhatIfScenarioComparison } from '../types/scenario';
 import {
@@ -24,6 +25,7 @@ const formatDelta = (diff: number) => {
 
 export const WhatIf: React.FC = () => {
   const { triggerDisruption, executeRecoveryAction } = useFleet();
+  const { t } = useTranslation();
 
   const [knobs, setKnobs] = useState<WhatIfKnobs>({
     removeVehicleV04: true,
@@ -105,7 +107,7 @@ export const WhatIf: React.FC = () => {
             <span className="text-xs font-mono text-text-muted">• RUN #SIM-2024-8849</span>
           </div>
           <h1 className="text-xl font-bold text-deep-navy tracking-tight mt-1">
-            What-If Simulator — Operational Decision Sandbox
+            {t('whatIf.title', 'What-If Simulator — Operational Decision Sandbox')}
           </h1>
           <p className="text-xs text-text-secondary mt-0.5">
             Stress-test vehicle downtime, unexpected priority spikes, and road network disruptions before committing to live drivers
@@ -118,7 +120,7 @@ export const WhatIf: React.FC = () => {
             className="h-8 px-3.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-deep-navy text-xs font-semibold transition-colors flex items-center gap-1.5"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Scenario</span>
+            <span>{t('common.reset', 'Reset Scenario')}</span>
           </button>
 
           <button
@@ -136,7 +138,7 @@ export const WhatIf: React.FC = () => {
         <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-deep-navy uppercase tracking-wider">
-              Active Simulation Knobs & Injection Vectors
+              {t('whatIf.scenariosHeader', 'Active Simulation Knobs & Injection Vectors')}
             </span>
             <span className="text-[10px] font-mono bg-surface-container px-2 py-0.5 rounded text-text-muted">
               Jaipur Metro Grid

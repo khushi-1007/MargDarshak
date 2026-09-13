@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 import {
   Radio,
   AlertTriangle,
@@ -13,6 +14,7 @@ import {
 
 export const EventStream: React.FC = () => {
   const { events, openRouteComparisonForIncident } = useFleet();
+  const { t } = useTranslation();
 
   const getEventIcon = (type: string) => {
     switch (type) {
@@ -46,9 +48,9 @@ export const EventStream: React.FC = () => {
       <div className="flex items-center justify-between pb-2.5 border-b border-border-subtle">
         <div className="flex items-center gap-2">
           <Radio className="w-4 h-4 text-primary animate-pulse" />
-          <h3 className="text-xs font-bold text-deep-navy">Live Operations Event Stream</h3>
+          <h3 className="text-xs font-bold text-deep-navy">{t('dashboard.incidentStream')}</h3>
         </div>
-        <span className="text-[11px] text-text-muted font-mono">Updated 10s ago</span>
+        <span className="text-[11px] text-text-muted font-mono">10s</span>
       </div>
 
       <div className="mt-3 flex flex-col gap-2.5 overflow-y-auto max-h-[380px] pr-1">
@@ -66,19 +68,19 @@ export const EventStream: React.FC = () => {
                     evt.severity
                   )}`}
                 >
-                  {evt.severity}
+                  {t(('status.' + evt.severity) as any, evt.severity)}
                 </span>
               </div>
               <span className="font-mono text-[10px] text-text-muted">{evt.timestamp}</span>
             </div>
 
-            <p className="text-xs font-bold text-deep-navy">{evt.title}</p>
+            <p className="text-xs font-bold text-deep-navy">{t(('events.' + evt.type) as any, evt.title)}</p>
             <p className="text-[11px] text-text-secondary line-clamp-2 leading-relaxed">
               {evt.description}
             </p>
 
             <div className="flex items-center justify-between pt-1 text-[11px] text-primary font-semibold">
-              <span>Inspect Delta Impact</span>
+              <span>{t('dashboard.inspectDeltaImpact')}</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </div>
           </div>

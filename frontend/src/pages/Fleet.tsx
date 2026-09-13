@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFleet } from '../context/FleetContext';
+import { useTranslation } from '../context/LanguageContext';
 import { Badge } from '../components/ui/Badge';
 import { StatCard } from '../components/ui/StatCard';
 import {
@@ -39,6 +40,7 @@ export const Fleet: React.FC = () => {
     openRouteComparisonForIncident,
     isOptimising,
   } = useFleet();
+  const { t } = useTranslation();
 
   const [selectedDetailVehicle, setSelectedDetailVehicle] = useState<Vehicle | null>(null);
   const [callingPilotVehicle, setCallingPilotVehicle] = useState<Vehicle | null>(null);
@@ -118,7 +120,7 @@ export const Fleet: React.FC = () => {
             </span>
           </div>
           <h1 className="text-xl font-bold text-deep-navy tracking-tight mt-1">
-            Fleet Assets & Telematics Control
+            {t('nav.fleet', 'Fleet Assets & Telematics Control')}
           </h1>
           <p className="text-xs text-text-secondary mt-0.5">
             {vehicles.length} registered units across Jaipur Hub • Real-time fuel burn, driver shift compliance, payload saturation
@@ -131,10 +133,10 @@ export const Fleet: React.FC = () => {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="h-8 px-3 rounded-lg border border-border-subtle bg-white text-xs text-deep-navy font-medium focus:outline-none cursor-pointer"
           >
-            <option value="ALL">All Vehicles ({vehicles.length})</option>
-            <option value="ON_ROUTE">On Route</option>
-            <option value="BROKEN_DOWN">Breakdown Stalls</option>
-            <option value="STANDBY">Standby Reserves</option>
+            <option value="ALL">{t('common.all', 'All Vehicles')} ({vehicles.length})</option>
+            <option value="ON_ROUTE">{t('status.ON_ROUTE', 'On Route')}</option>
+            <option value="BROKEN_DOWN">{t('vehicle.breakdown', 'Breakdown Stalls')}</option>
+            <option value="STANDBY">{t('status.STANDBY', 'Standby Reserves')}</option>
           </select>
         </div>
       </div>
@@ -142,7 +144,7 @@ export const Fleet: React.FC = () => {
       {/* Fleet Overview Telemetry Bento - Fully Dynamic */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          label="Operational Fleet SLA"
+          label={t('dashboard.onTimeSla', 'Operational Fleet SLA')}
           value={`${operationalSlaPct}%`}
           badge={`${activeOperationalCount} of ${totalVehiclesCount} Operational`}
           badgeType={Number(operationalSlaPct) >= 80 ? 'success' : 'warning'}
@@ -154,7 +156,7 @@ export const Fleet: React.FC = () => {
         />
 
         <StatCard
-          label="Payload Saturation"
+          label={t('vehicle.payload', 'Payload Saturation')}
           value={`${payloadSaturationPct}%`}
           badge={Number(payloadSaturationPct) > 75 ? 'High Utilisation' : 'Balanced'}
           badgeType="info"
@@ -166,7 +168,7 @@ export const Fleet: React.FC = () => {
         />
 
         <StatCard
-          label="Mean Fuel Economy"
+          label={t('analytics.fuelEfficiency', 'Mean Fuel Economy')}
           value={meanFuelKmpl}
           unit="km/L"
           badge={`₹${costPerKm} / km`}
@@ -177,7 +179,7 @@ export const Fleet: React.FC = () => {
         />
 
         <StatCard
-          label="Distance Traversed Today"
+          label={t('dashboard.totalDistance', 'Distance Traversed Today')}
           value={totalDistanceTraversed}
           unit="km"
           badge="Jaipur Active Grid"

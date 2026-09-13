@@ -13,19 +13,21 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 
 export const Sidebar: React.FC = () => {
   const { cascadingFailureActive } = useFleet();
+  const { t } = useTranslation();
 
   const navItems = [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/operations', label: 'Operations', icon: Radio },
-    { to: '/fleet', label: 'Fleet Assets', icon: Truck },
-    { to: '/orders', label: 'Orders & SLA', icon: Package },
-    { to: '/routes', label: 'Routes & Waypoints', icon: RouteIcon },
-    { to: '/what-if', label: 'What-If Simulator', icon: FlaskConical },
-    { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { to: '/driver', label: 'Driver Dashboard', icon: Smartphone, highlight: true },
+    { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard },
+    { to: '/operations', label: t('nav.operations'), icon: Radio },
+    { to: '/fleet', label: t('nav.fleetAssets'), icon: Truck },
+    { to: '/orders', label: t('nav.ordersSla'), icon: Package },
+    { to: '/routes', label: t('nav.routesWaypoints'), icon: RouteIcon },
+    { to: '/what-if', label: t('nav.whatIfSimulator'), icon: FlaskConical },
+    { to: '/analytics', label: t('nav.analytics'), icon: BarChart3 },
+    { to: '/driver', label: t('nav.driverDashboard'), icon: Smartphone, highlight: true },
   ];
 
   return (
@@ -47,7 +49,7 @@ export const Sidebar: React.FC = () => {
                 <span className="h-2 w-2 rounded-full bg-status-critical animate-ping" title="Cascading Incident Active" />
               )}
             </span>
-            <span className="text-text-muted text-[11px] truncate">Intelligent Fleet Solver</span>
+            <span className="text-text-muted text-[11px] truncate">{t('nav.intelligentSolver')}</span>
           </div>
         </div>
 
@@ -74,7 +76,7 @@ export const Sidebar: React.FC = () => {
                 <span className="truncate">{item.label}</span>
                 {item.highlight && (
                   <span className="ml-auto text-[9px] px-1.5 py-0.2 rounded bg-status-info/20 text-status-info font-bold">
-                    CAB
+                    {t('nav.cabTag')}
                   </span>
                 )}
               </NavLink>
@@ -90,7 +92,7 @@ export const Sidebar: React.FC = () => {
           <div className="flex items-center gap-2 min-w-0">
             <span className={`h-2 w-2 rounded-full shrink-0 ${cascadingFailureActive ? 'bg-status-critical animate-ping' : 'bg-status-success animate-pulse'}`} />
             <span className="text-[11px] truncate">
-              {cascadingFailureActive ? 'Degraded Fleet' : 'Solver Engine Sync'}
+              {cascadingFailureActive ? t('nav.degradedFleet') : t('nav.solverSync')}
             </span>
           </div>
           <span className="font-mono text-[10px] text-slate-400">14ms</span>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 import { Badge } from '../ui/Badge';
 import { Vehicle } from '../../types/fleet';
 import {
@@ -18,15 +19,19 @@ import {
 } from 'lucide-react';
 
 export const ActiveRoutesTable: React.FC = () => {
+  const { t } = useTranslation();
   const {
     vehicles,
     routes,
     selectedVehicleId,
     setSelectedVehicleId,
     openRouteComparisonForIncident,
+    telemetryState,
+    events,
   } = useFleet();
 
   const [inspectingVehicle, setInspectingVehicle] = useState<Vehicle | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // Compute total route cost across all vehicles to guarantee exact parity with Top KPI card
   const totalRoutesCost = vehicles.reduce((sum, v) => {
@@ -35,6 +40,7 @@ export const ActiveRoutesTable: React.FC = () => {
   }, 0);
 
   const handleEyeClick = (v: Vehicle) => {
+    setLocationError(null);
     if (selectedVehicleId === v.id && inspectingVehicle?.id === v.id) {
       setSelectedVehicleId(null);
       setInspectingVehicle(null);
@@ -53,18 +59,77 @@ export const ActiveRoutesTable: React.FC = () => {
     ? routes.find((r) => r.vehicleId === inspectingVehicle.id)
     : null;
 
+  const getVehicleLocation = (v: Vehicle): { lat: number; lng: number } | null => {
+    // 1. Check live telemetry from telemetryEngine
+    const tel = telemetryState?.vehicles?.get(v.id) || telemetryState?.vehicles?.get(v.licensePlate);
+    let lat = tel?.currentLat ?? v.currentLat;
+    let lng = tel?.currentLng ?? v.currentLng;
+
+    // 2. If vehicle is broken down, check if there is an active breakdown incident event
+    if (v.status === 'BROKEN_DOWN') {
+      const bdEvent = events?.find(
+        (e) => !e.resolved && (e.affectedVehicleIds?.includes(v.id) || e.type === 'VEHICLE_BREAKDOWN' || e.title.toLowerCase().includes('breakdown'))
+      );
+      if (bdEvent && typeof bdEvent.lat === 'number' && typeof bdEvent.lng === 'number') {
+        lat = bdEvent.lat;
+        lng = bdEvent.lng;
+      }
+    }
+
+    // 3. Fallback to current or first route stop if vehicle coordinates are missing
+    if ((lat === undefined || lng === undefined) && inspectingRoute?.stops?.length) {
+      const nextStop = inspectingRoute.stops.find((s) => !s.completed) || inspectingRoute.stops[0];
+      if (typeof nextStop?.lat === 'number' && typeof nextStop?.lng === 'number') {
+        lat = nextStop.lat;
+        lng = nextStop.lng;
+      }
+    }
+
+    // 4. Validate coordinates
+    if (
+      typeof lat === 'number' &&
+      typeof lng === 'number' &&
+      !isNaN(lat) &&
+      !isNaN(lng) &&
+      lat >= -90 &&
+      lat <= 90 &&
+      lng >= -180 &&
+      lng <= 180
+    ) {
+      return { lat, lng };
+    }
+
+    return null;
+  };
+
+  const handleTrackOnLiveMap = () => {
+    if (!inspectingVehicle) return;
+
+    const loc = getVehicleLocation(inspectingVehicle);
+    if (!loc) {
+      setLocationError(t('common.liveLocationUnavailable'));
+      return;
+    }
+
+    setLocationError(null);
+    const googleMapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(
+      `${loc.lat},${loc.lng}`
+    )}`;
+    window.open(googleMapsUrl, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="bg-surface-main p-4 rounded-xl border border-border-subtle shadow-sm flex flex-col relative">
       <div className="flex items-center justify-between pb-3 border-b border-border-subtle">
         <div className="flex items-center gap-2">
           <Truck className="w-4 h-4 text-primary" />
           <h2 className="text-xs font-bold text-deep-navy">
-            Jaipur Vehicle Operational Roster & Active Routes
+            {t('dashboard.vehicleRoster')}
           </h2>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-mono text-text-muted">
-            {vehicles.length} Registered Units
+            {vehicles.length} {t('dashboard.registeredUnits')}
           </span>
           {selectedVehicleId && (
             <button
@@ -74,7 +139,7 @@ export const ActiveRoutesTable: React.FC = () => {
               }}
               className="text-[10px] text-primary hover:underline font-semibold"
             >
-              Reset Map Filter
+              {t('dashboard.resetMapFilter')}
             </button>
           )}
         </div>
@@ -84,14 +149,14 @@ export const ActiveRoutesTable: React.FC = () => {
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-surface-container-low text-text-secondary font-semibold uppercase text-[11px] border-b border-border-subtle">
-              <th className="py-2.5 px-3">Vehicle</th>
-              <th className="py-2.5 px-3">Driver / Pilot</th>
-              <th className="py-2.5 px-3">Active Corridor</th>
-              <th className="py-2.5 px-3">Status</th>
-              <th className="py-2.5 px-3 text-right">Remaining Payload</th>
-              <th className="py-2.5 px-3 text-right">Orders</th>
-              <th className="py-2.5 px-3 text-right">Cost (₹)</th>
-              <th className="py-2.5 px-3 text-center">Action</th>
+              <th className="py-2.5 px-3">{t('dashboard.vehicleCol')}</th>
+              <th className="py-2.5 px-3">{t('dashboard.driverCol')}</th>
+              <th className="py-2.5 px-3">{t('dashboard.corridorCol')}</th>
+              <th className="py-2.5 px-3">{t('dashboard.statusCol')}</th>
+              <th className="py-2.5 px-3 text-right">{t('dashboard.payloadCol')}</th>
+              <th className="py-2.5 px-3 text-right">{t('dashboard.ordersCol')}</th>
+              <th className="py-2.5 px-3 text-right">{t('dashboard.costCol')}</th>
+              <th className="py-2.5 px-3 text-center">{t('dashboard.actionCol')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle/50">
@@ -137,13 +202,13 @@ export const ActiveRoutesTable: React.FC = () => {
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-medium text-deep-navy">
                     {isBroken ? (
-                      <span className="text-status-critical font-bold">0 kg (Stalled)</span>
+                      <span className="text-status-critical font-bold">{t('dashboard.stalledWarning')}</span>
                     ) : (
                       `${v.capacityKg - v.currentLoadKg} kg`
                     )}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-semibold text-deep-navy">
-                    {v.assignedOrderIds.length} stops
+                    {v.assignedOrderIds.length} {t('dashboard.stopsCount')}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-bold text-deep-navy">
                     ₹{route ? route.estimatedCostInr.toLocaleString() : '0'}
@@ -161,7 +226,7 @@ export const ActiveRoutesTable: React.FC = () => {
                         type="button"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        {isSelected && <span className="text-[10px] pr-0.5">Tracking</span>}
+                        {isSelected && <span className="text-[10px] pr-0.5">{t('dashboard.trackingBtn')}</span>}
                       </button>
                       {isBroken && (
                         <button
@@ -169,7 +234,7 @@ export const ActiveRoutesTable: React.FC = () => {
                           className="px-2 py-1 rounded bg-status-critical text-white text-[10px] font-bold shadow-xs hover:bg-red-700 transition-colors cursor-pointer"
                           type="button"
                         >
-                          Reroute
+                          {t('dashboard.rerouteBtn')}
                         </button>
                       )}
                     </div>
@@ -184,13 +249,13 @@ export const ActiveRoutesTable: React.FC = () => {
                 colSpan={6}
                 className="py-3 px-3 text-right text-text-secondary uppercase tracking-wider text-[11px]"
               >
-                Total Fleet Route Cost:
+                {t('dashboard.totalFleetCost')}:
               </td>
               <td className="py-3 px-3 text-right font-mono text-primary font-extrabold text-sm">
                 ₹{totalRoutesCost.toLocaleString()}
               </td>
               <td className="py-3 px-3 text-center text-[10px] text-text-muted font-normal">
-                = Operating Cost
+                {t('dashboard.operatingCostLabel')}
               </td>
             </tr>
           </tfoot>
@@ -218,12 +283,12 @@ export const ActiveRoutesTable: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-sm text-deep-navy">
-                      Unit: {inspectingVehicle.licensePlate}
+                      {t('vehicle.unit')}: {inspectingVehicle.licensePlate}
                     </h3>
                     <Badge status={inspectingVehicle.status} type="vehicle" />
                   </div>
                   <p className="text-xs text-text-muted mt-0.5">
-                    Pilot: <strong className="text-deep-navy">{inspectingVehicle.driverName}</strong> • {inspectingVehicle.currentZone}
+                    {t('vehicle.pilot')}: <strong className="text-deep-navy">{inspectingVehicle.driverName}</strong> • {inspectingVehicle.currentZone}
                   </p>
                 </div>
               </div>
@@ -240,17 +305,17 @@ export const ActiveRoutesTable: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="p-2.5 rounded-xl bg-surface-container-low border border-border-subtle flex flex-col">
                 <span className="text-[10px] text-text-muted uppercase flex items-center gap-1">
-                  <Gauge className="w-3 h-3 text-emerald-600" /> GPS Speed
+                  <Gauge className="w-3 h-3 text-emerald-600" /> {t('vehicle.gpsSpeed')}
                 </span>
                 <span className="font-mono font-bold text-deep-navy text-sm mt-0.5">
                   {inspectingVehicle.status === 'BROKEN_DOWN' ? '0 km/h' : `${inspectingVehicle.currentSpeedKmh || 40} km/h`}
                 </span>
-                <span className="text-[10px] text-emerald-600 font-semibold">Live CAN-Bus</span>
+                <span className="text-[10px] text-emerald-600 font-semibold">{t('vehicle.liveCanBus')}</span>
               </div>
 
               <div className="p-2.5 rounded-xl bg-surface-container-low border border-border-subtle flex flex-col">
                 <span className="text-[10px] text-text-muted uppercase flex items-center gap-1">
-                  <DollarSign className="w-3 h-3 text-primary" /> Route Cost
+                  <DollarSign className="w-3 h-3 text-primary" /> {t('vehicle.routeCost')}
                 </span>
                 <span className="font-mono font-bold text-primary text-sm mt-0.5">
                   ₹{inspectingRoute ? inspectingRoute.estimatedCostInr.toLocaleString() : '0'}
@@ -260,17 +325,17 @@ export const ActiveRoutesTable: React.FC = () => {
 
               <div className="p-2.5 rounded-xl bg-surface-container-low border border-border-subtle flex flex-col">
                 <span className="text-[10px] text-text-muted uppercase flex items-center gap-1">
-                  <Compass className="w-3 h-3 text-indigo-600" /> Distance
+                  <Compass className="w-3 h-3 text-indigo-600" /> {t('vehicle.distance')}
                 </span>
                 <span className="font-mono font-bold text-deep-navy text-sm mt-0.5">
                   {inspectingRoute?.totalDistanceKm || 0} km
                 </span>
-                <span className="text-[10px] text-text-muted">{inspectingRoute?.totalDurationMinutes || 0} mins</span>
+                <span className="text-[10px] text-text-muted">{inspectingRoute?.totalDurationMinutes || 0} {t('common.mins')}</span>
               </div>
 
               <div className="p-2.5 rounded-xl bg-surface-container-low border border-border-subtle flex flex-col gap-1">
                 <span className="text-[10px] text-text-muted uppercase flex items-center gap-1">
-                  <Truck className="w-3 h-3 text-amber-600" /> Payload
+                  <Truck className="w-3 h-3 text-amber-600" /> {t('vehicle.payload')}
                 </span>
                 <span className="font-mono font-bold text-deep-navy text-sm">
                   {inspectingVehicle.currentLoadKg} / {inspectingVehicle.capacityKg} kg
@@ -288,7 +353,7 @@ export const ActiveRoutesTable: React.FC = () => {
                         <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
                       </div>
                       <span className={`text-[10px] font-semibold ${textColor}`}>
-                        {pct}% utilized
+                        {pct}% {t('vehicle.utilized')}
                       </span>
                     </>
                   );
@@ -299,7 +364,7 @@ export const ActiveRoutesTable: React.FC = () => {
             {/* Stops Sequence Itinerary */}
             <div>
               <div className="flex items-center justify-between pb-1 text-xs font-bold text-deep-navy">
-                <span>Waypoints & Stops Sequence ({inspectingRoute?.stops?.length || 0})</span>
+                <span>{t('vehicle.waypointsSequence')} ({inspectingRoute?.stops?.length || 0})</span>
                 <span className="text-[11px] font-mono text-text-muted">Jaipur Grid</span>
               </div>
               <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1 mt-1">
@@ -322,7 +387,7 @@ export const ActiveRoutesTable: React.FC = () => {
                             <span>{s.name}</span>
                             {s.isPriority && (
                               <span className="px-1 py-0.2 rounded bg-status-critical text-white text-[9px] font-bold">
-                                PRIORITY
+                                {t('statuses.priority')}
                               </span>
                             )}
                           </div>
@@ -332,41 +397,46 @@ export const ActiveRoutesTable: React.FC = () => {
                       <div className="text-right font-mono text-xs shrink-0">
                         <span className="font-bold">{s.eta}</span>
                         <span className="block text-[10px] text-text-muted">
-                          {s.completed ? 'Delivered ✓' : 'Scheduled'}
+                          {s.completed ? `${t('statuses.delivered')} ✓` : t('statuses.scheduled')}
                         </span>
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="p-3 text-center text-xs text-text-muted bg-surface-container-low rounded-lg">
-                    Vehicle currently on standby at Jaipur Logistics Depot.
+                    {t('vehicle.standbyMsg')}
                   </div>
                 )}
               </div>
             </div>
 
+            {/* Location Error Warning if unavailable */}
+            {locationError && (
+              <div className="p-2.5 rounded-lg bg-status-critical/10 border border-status-critical/30 text-status-critical text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{locationError}</span>
+              </div>
+            )}
+
             {/* Modal Actions */}
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
               <button
-                onClick={() => {
-                  setInspectingVehicle(null);
-                  const mapElem = document.getElementById('fleet-telemetry-map') || document.querySelector('.leaflet-container');
-                  if (mapElem) {
-                    mapElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }
-                }}
+                onClick={handleTrackOnLiveMap}
                 className="py-1.5 px-3 rounded-lg bg-primary text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer hover:bg-primary/90 transition-all"
                 type="button"
               >
                 <Navigation className="w-3.5 h-3.5" />
-                <span>Track on Live Map</span>
+                <span>{t('vehicle.trackOnLiveMap')}</span>
               </button>
               <button
-                onClick={() => setInspectingVehicle(null)}
+                onClick={() => {
+                  setInspectingVehicle(null);
+                  setLocationError(null);
+                }}
                 className="py-1.5 px-3 rounded-lg bg-surface-container hover:bg-surface-container-high text-deep-navy text-xs font-semibold transition-colors cursor-pointer"
                 type="button"
               >
-                Close
+                {t('common.close')}
               </button>
             </div>
           </div>

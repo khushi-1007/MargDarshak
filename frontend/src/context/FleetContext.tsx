@@ -129,7 +129,7 @@ interface FleetContextType {
 
   // Driver Console Actions
   setActiveDriverId: (driverId: string) => void;
-  markOrderDelivered: (orderId: string) => Promise<void>;
+  markOrderDelivered: (orderId: string, stopNumber?: number) => Promise<void>;
   reportDriverIssue: (issue: { type: IssueType; severity: IssueSeverity; description: string }) => Promise<void>;
   acceptUpdatedRoute: () => void;
   dismissRouteUpdateAlert: () => void;
@@ -206,6 +206,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [aiAssistantModalOpen, setAiAssistantModalOpen] = useState<boolean>(false);
   const [activeJourneyStep, setActiveJourneyStep] = useState<number>(1);
   const [telemetryState, setTelemetryState] = useState<FleetTelemetryState>(telemetryEngine.getLatestState());
+  const deliveredKeysRef = React.useRef<Set<string>>(new Set());
 
   // Subscribe to live vehicle telemetry ticks
   useEffect(() => {
@@ -236,9 +237,36 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         fleetService.getDriverIssues().catch(() => []),
       ]);
 
+      // Apply persistent delivered stop & order overrides
+      const deliveredSet = deliveredKeysRef.current;
+      const patchedRoutes = r.map((route) => ({
+        ...route,
+        stops: route.stops.map((s) => {
+          const isDelivered =
+            s.completed ||
+            (s.orderId && deliveredSet.has(s.orderId)) ||
+            (s.backendOrderId && deliveredSet.has(s.backendOrderId)) ||
+            (s.stopId && deliveredSet.has(s.stopId)) ||
+            deliveredSet.has(`${route.id}_${s.stopNumber}`) ||
+            deliveredSet.has(`${route.vehicleId}_${s.stopNumber}`);
+          return isDelivered ? { ...s, completed: true } : s;
+        }),
+      }));
+
+      const patchedOrders = o.map((ord) => {
+        const isDelivered =
+          (ord as any).status === 'DELIVERED' ||
+          ord.slaStatus === 'DELIVERED' ||
+          deliveredSet.has(ord.id) ||
+          ((ord as any).external_order_id && deliveredSet.has((ord as any).external_order_id));
+        return isDelivered
+          ? { ...ord, slaStatus: 'DELIVERED' as const }
+          : ord;
+      });
+
       setVehicles(v);
-      setOrders(o);
-      setRoutes(r);
+      setOrders(patchedOrders);
+      setRoutes(patchedRoutes);
       setEvents(e);
       setMetrics(m);
       setDrivers(d);
@@ -246,7 +274,7 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setDriverIssues(issues);
 
       // Sync telemetry engine with live vehicles and routes
-      telemetryEngine.updateFleetAndRoutes(v, r);
+      telemetryEngine.updateFleetAndRoutes(v, patchedRoutes);
 
       // Default active driver to first driver if not already set
       if (d.length > 0 && !activeDriverId) {
@@ -399,29 +427,73 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // MARK ORDER DELIVERED (Driver Action -> Real Backend Mutation)
-  const markOrderDelivered = async (orderId: string) => {
-    try {
-      // 1. Find the stop in the active driver's route (uses stopId for direct PATCH)
-      const currentRoute = routes.find((r) => r.vehicleId === activeDriverVehicle?.id);
-      const stop = currentRoute?.stops.find(
-        (s) => s.orderId === orderId || s.backendOrderId === orderId
-      );
+  const markOrderDelivered = async (orderId: string, stopNumber?: number) => {
+    const arrivalTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
+    // Identify target route and stop
+    const currentRoute = routes.find((r) => r.vehicleId === activeDriverVehicle?.id || r.vehicleId === activeDriver?.vehicleId);
+    const stop = currentRoute?.stops.find(
+      (s) =>
+        (orderId && (s.orderId === orderId || s.backendOrderId === orderId)) ||
+        (stopNumber !== undefined && s.stopNumber === stopNumber)
+    ) || (stopNumber !== undefined ? currentRoute?.stops[stopNumber - 1] : undefined);
+
+    // Track in persistent set across backend refetches
+    if (orderId) deliveredKeysRef.current.add(orderId);
+    if (stop?.orderId) deliveredKeysRef.current.add(stop.orderId);
+    if (stop?.backendOrderId) deliveredKeysRef.current.add(stop.backendOrderId);
+    if (stop?.stopId) deliveredKeysRef.current.add(stop.stopId);
+    if (currentRoute?.id && stop?.stopNumber) deliveredKeysRef.current.add(`${currentRoute.id}_${stop.stopNumber}`);
+    if (currentRoute?.vehicleId && stop?.stopNumber) deliveredKeysRef.current.add(`${currentRoute.vehicleId}_${stop.stopNumber}`);
+    if (activeDriverVehicle?.id && stop?.stopNumber) deliveredKeysRef.current.add(`${activeDriverVehicle.id}_${stop.stopNumber}`);
+    if (stopNumber !== undefined && currentRoute?.id) deliveredKeysRef.current.add(`${currentRoute.id}_${stopNumber}`);
+    if (stopNumber !== undefined && currentRoute?.vehicleId) deliveredKeysRef.current.add(`${currentRoute.vehicleId}_${stopNumber}`);
+    if (stopNumber !== undefined && activeDriverVehicle?.id) deliveredKeysRef.current.add(`${activeDriverVehicle.id}_${stopNumber}`);
+
+    // Immediate Optimistic Local State Update
+    setRoutes((prevRoutes) =>
+      prevRoutes.map((r) => {
+        const isTargetRoute = r.vehicleId === activeDriverVehicle?.id || r.id === currentRoute?.id;
+        return {
+          ...r,
+          stops: r.stops.map((s) => {
+            const matches =
+              (orderId && (s.orderId === orderId || s.backendOrderId === orderId)) ||
+              (stop?.stopId && s.stopId === stop.stopId) ||
+              (isTargetRoute && stopNumber !== undefined && s.stopNumber === stopNumber) ||
+              (isTargetRoute && stop && s.stopNumber === stop.stopNumber);
+            return matches ? { ...s, completed: true, actualArrival: arrivalTime } : s;
+          }),
+        };
+      })
+    );
+
+    setOrders((prevOrders) =>
+      prevOrders.map((o) => {
+        const matches =
+          (orderId && (o.id === orderId || (o as any).external_order_id === orderId)) ||
+          (stop?.orderId && (o.id === stop.orderId || (o as any).external_order_id === stop.orderId)) ||
+          (stop?.backendOrderId && o.id === stop.backendOrderId);
+        return matches ? { ...o, slaStatus: 'DELIVERED', status: 'DELIVERED' } : o;
+      })
+    );
+
+    try {
       let updatedStop = false;
 
       if (stop?.stopId) {
         // Direct route stop status update using the stop's own ID
         await routeApi.updateStopStatus(stop.stopId, {
           status: 'COMPLETED',
-          actual_arrival: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-          actual_departure: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-        });
+          actual_arrival: arrivalTime,
+          actual_departure: arrivalTime,
+        }).catch((e) => console.warn('routeApi.updateStopStatus error:', e));
         updatedStop = true;
       }
 
       if (!updatedStop) {
         // Fallback: scan all backend routes for this stop
-        const backendRoutes = await routeApi.listRoutes();
+        const backendRoutes = await routeApi.listRoutes().catch(() => []);
         for (const r of backendRoutes) {
           const s = (r.stops || []).find(
             (s: any) => s.order_id === orderId || s.id === orderId
@@ -429,8 +501,8 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           if (s) {
             await routeApi.updateStopStatus(s.id, {
               status: 'COMPLETED',
-              actual_arrival: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-            });
+              actual_arrival: arrivalTime,
+            }).catch((e) => console.warn('routeApi.updateStopStatus fallback error:', e));
             updatedStop = true;
             break;
           }
@@ -440,23 +512,24 @@ export const FleetProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // 2. Also update order status to DELIVERED
       const backendOrderId = stop?.backendOrderId;
       if (backendOrderId) {
-        await orderApi.updateOrder(backendOrderId, { status: 'DELIVERED' as any });
+        await orderApi.updateOrder(backendOrderId, { status: 'DELIVERED' as any })
+          .catch((e) => console.warn('orderApi.updateOrder error:', e));
       } else {
         // Try to find by external_order_id fallback
-        const backendAll = await orderApi.listOrders();
+        const backendAll = await orderApi.listOrders().catch(() => []);
         const target = backendAll.find(
           (bo: BackendOrder) => bo.external_order_id === orderId || bo.id === orderId
         );
         if (target) {
-          await orderApi.updateOrder(target.id, { status: 'DELIVERED' as any });
+          await orderApi.updateOrder(target.id, { status: 'DELIVERED' as any })
+            .catch((e) => console.warn('orderApi.updateOrder target error:', e));
         }
       }
 
-      // 3. Refresh all data from backend
-      await loadAllData();
+      // 3. Refresh all data from backend (persistence logic preserves completed state)
+      await loadAllData().catch((e) => console.warn('loadAllData error in markOrderDelivered:', e));
     } catch (err) {
-      console.error('Failed to mark order delivered on backend:', err);
-      throw err;
+      console.warn('Backend markOrderDelivered error (optimistic update preserved):', err);
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useFleet } from '../context/FleetContext';
+import { useTranslation } from '../context/LanguageContext';
 import { Badge } from '../components/ui/Badge';
 import {
   Package,
@@ -33,6 +34,7 @@ export const Orders: React.FC = () => {
     injectPriorityOrder,
     openRouteComparisonForIncident,
   } = useFleet();
+  const { t } = useTranslation();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [filterSla, setFilterSla] = useState<string>('ALL');
@@ -108,7 +110,7 @@ export const Orders: React.FC = () => {
             <span className="text-xs font-medium text-text-muted">• {orders.length} Active Shipments</span>
           </div>
           <h1 className="text-xl font-bold text-deep-navy tracking-tight mt-1">
-            Order Fulfilment & SLA Management
+            {t('orders.title', 'Order Fulfilment & SLA Management')}
           </h1>
           <p className="text-xs text-text-secondary mt-0.5">
             Strict customer delivery windows, cold-chain compliance, and real-time SLA breach prevention
@@ -121,7 +123,7 @@ export const Orders: React.FC = () => {
             className="h-8 px-3.5 rounded-lg bg-primary-container hover:bg-primary text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <PlusCircle className="w-3.5 h-3.5" />
-            <span>Inject Priority Order (P-101)</span>
+            <span>{t('dashboard.addPriorityOrder', 'Inject Priority Order (P-101)')}</span>
           </button>
         </div>
       </div>
@@ -129,12 +131,12 @@ export const Orders: React.FC = () => {
       {/* Filter Status Pills */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {[
-          { key: 'ALL', label: 'All Orders', count: orders.length },
-          { key: 'PRIORITY', label: 'Priority Only', count: orders.filter((o) => o.priority !== 'STANDARD').length },
-          { key: 'AT_RISK', label: 'At Risk', count: orders.filter((o) => o.slaStatus === 'AT_RISK').length },
-          { key: 'LATE', label: 'Late', count: orders.filter((o) => o.slaStatus === 'LATE').length },
-          { key: 'UNSERVICEABLE', label: 'Unserviceable', count: orders.filter((o) => o.slaStatus === 'UNSERVICEABLE').length },
-          { key: 'DELIVERED', label: 'Delivered', count: orders.filter((o) => o.slaStatus === 'DELIVERED').length },
+          { key: 'ALL', label: t('common.all', 'All Orders'), count: orders.length },
+          { key: 'PRIORITY', label: t('common.priority', 'Priority Only'), count: orders.filter((o) => o.priority !== 'STANDARD').length },
+          { key: 'AT_RISK', label: t('dashboard.atRisk', 'At Risk'), count: orders.filter((o) => o.slaStatus === 'AT_RISK').length },
+          { key: 'LATE', label: t('status.LATE', 'Late'), count: orders.filter((o) => o.slaStatus === 'LATE').length },
+          { key: 'UNSERVICEABLE', label: t('status.UNSERVICEABLE', 'Unserviceable'), count: orders.filter((o) => o.slaStatus === 'UNSERVICEABLE').length },
+          { key: 'DELIVERED', label: t('status.DELIVERED', 'Delivered'), count: orders.filter((o) => o.slaStatus === 'DELIVERED').length },
         ].map((f) => (
           <button
             key={f.key}
@@ -165,7 +167,7 @@ export const Orders: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search consignee, ID, zone, or address..."
+                placeholder={t('common.search', 'Search consignee, ID, zone, or address...')}
                 className="w-full h-8 pl-8 pr-3 rounded-lg border border-border-subtle bg-surface-container-low text-xs text-deep-navy focus:outline-none focus:bg-white"
               />
             </div>
@@ -179,15 +181,15 @@ export const Orders: React.FC = () => {
             <table className="min-w-[860px] w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-surface-container-low text-text-secondary font-semibold uppercase text-[11px] border-b border-border-subtle">
-                  <th className="py-2.5 px-3 min-w-[90px]">Order ID</th>
-                  <th className="py-2.5 px-3 min-w-[150px]">Consignee</th>
-                  <th className="py-2.5 px-3 min-w-[160px]">Destination / Zone</th>
-                  <th className="py-2.5 px-3 text-right min-w-[70px]">Payload</th>
-                  <th className="py-2.5 px-3 min-w-[100px]">Window</th>
-                  <th className="py-2.5 px-3 min-w-[80px]">Vehicle</th>
+                  <th className="py-2.5 px-3 min-w-[90px]">{t('orders.orderIdCol', 'Order ID')}</th>
+                  <th className="py-2.5 px-3 min-w-[150px]">{t('orders.customerCol', 'Consignee')}</th>
+                  <th className="py-2.5 px-3 min-w-[160px]">{t('orders.addressCol', 'Destination / Zone')}</th>
+                  <th className="py-2.5 px-3 text-right min-w-[70px]">{t('vehicle.payload', 'Payload')}</th>
+                  <th className="py-2.5 px-3 min-w-[100px]">{t('orders.timeWindowCol', 'Window')}</th>
+                  <th className="py-2.5 px-3 min-w-[80px]">{t('orders.vehicleCol', 'Vehicle')}</th>
                   <th className="py-2.5 px-3 min-w-[70px]">ETA</th>
-                  <th className="py-2.5 px-3 min-w-[90px]">SLA Status</th>
-                  <th className="py-2.5 px-3 text-center min-w-[70px]">Action</th>
+                  <th className="py-2.5 px-3 min-w-[90px]">{t('orders.statusCol', 'SLA Status')}</th>
+                  <th className="py-2.5 px-3 text-center min-w-[70px]">{t('orders.actionCol', 'Action')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle/50">

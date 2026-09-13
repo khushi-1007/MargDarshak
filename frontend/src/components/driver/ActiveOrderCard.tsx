@@ -11,9 +11,11 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 
 export const ActiveOrderCard: React.FC = () => {
   const { activeOrder, activeDriverRoute, currentStopIndex } = useFleet();
+  const { t } = useTranslation();
 
   const [callModalOpen, setCallModalOpen] = useState<boolean>(false);
   const [copiedPhone, setCopiedPhone] = useState<boolean>(false);
@@ -24,7 +26,7 @@ export const ActiveOrderCard: React.FC = () => {
   if (!activeOrder) {
     return (
       <div className="bg-surface-main p-4 rounded-2xl border border-border-subtle shadow-xs text-xs text-text-muted text-center">
-        No active orders for current route leg.
+        {t('driver.noActiveOrders')}
       </div>
     );
   }
@@ -42,11 +44,11 @@ export const ActiveOrderCard: React.FC = () => {
         <div className="flex items-center gap-1.5">
           <Package className="w-4 h-4 text-primary-container" />
           <h3 className="text-xs font-bold text-deep-navy uppercase tracking-wider">
-            Active Order
+            {t('driver.activeOrder')}
           </h3>
         </div>
         <span className="px-2 py-0.5 rounded-full bg-status-info/15 text-status-info font-mono text-[10px] font-bold uppercase tracking-wide">
-          {activeOrder.slaStatus === 'DELIVERED' ? 'DELIVERED' : 'OUT FOR DELIVERY'}
+          {activeOrder.slaStatus === 'DELIVERED' ? t('statuses.delivered') : t('orders.outForDelivery')}
         </span>
       </div>
 
@@ -64,7 +66,7 @@ export const ActiveOrderCard: React.FC = () => {
               : 'bg-surface-container text-deep-navy'
           }`}
         >
-          {activeOrder.priority} Priority
+          {activeOrder.priority} {t('driver.priority')}
         </span>
       </div>
 
@@ -73,7 +75,7 @@ export const ActiveOrderCard: React.FC = () => {
         {/* Customer */}
         <div>
           <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-            Customer
+            {t('driver.customer')}
           </div>
           <div className="font-bold text-deep-navy text-sm mt-0.5">
             {activeOrder.consignee}
@@ -83,7 +85,7 @@ export const ActiveOrderCard: React.FC = () => {
         {/* Address */}
         <div>
           <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-            Address
+            {t('driver.address', 'Address')}
           </div>
           <div className="text-text-secondary mt-0.5 leading-snug">
             {activeOrder.address}, {activeOrder.zone}, Jaipur - {activeOrder.pincode}
@@ -93,7 +95,7 @@ export const ActiveOrderCard: React.FC = () => {
         {/* Items & Cold Chain */}
         <div>
           <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
-            Consignment Items
+            {t('driver.consignmentItems', 'Consignment Items')}
           </div>
           <div className="flex items-center gap-1.5 font-semibold text-deep-navy mt-0.5">
             {activeOrder.loadType === 'COLD_CHAIN' ? (
@@ -110,13 +112,13 @@ export const ActiveOrderCard: React.FC = () => {
         {/* Time Window */}
         <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-surface-container-low border border-border-subtle">
           <div>
-            <div className="text-[10px] text-text-muted font-medium">Time Window</div>
+            <div className="text-[10px] text-text-muted font-medium">{t('driver.timeWindow', 'Delivery Window')}</div>
             <div className="font-mono font-bold text-deep-navy text-xs mt-0.5">
               {activeOrder.timeWindowStart} – {activeOrder.timeWindowEnd}
             </div>
           </div>
           <div>
-            <div className="text-[10px] text-text-muted font-medium">Estimated Arrival</div>
+            <div className="text-[10px] text-text-muted font-medium">{t('driver.estimatedArrival', 'Estimated Arrival')}</div>
             <div className="font-mono font-bold text-status-success text-xs mt-0.5">
               {activeOrder.eta}
             </div>
@@ -126,7 +128,7 @@ export const ActiveOrderCard: React.FC = () => {
         {/* Special Instructions */}
         <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/80">
           <div className="text-[10px] font-bold text-amber-800 uppercase tracking-wider flex items-center gap-1">
-            <FileText className="w-3 h-3" /> Special Instructions
+            <FileText className="w-3 h-3" /> {t('driver.specialInstructions', 'Special Instructions')}
           </div>
           <p className="text-[11px] text-amber-900 mt-1 leading-relaxed">
             {activeOrder.notes ||
@@ -142,7 +144,7 @@ export const ActiveOrderCard: React.FC = () => {
         className="mt-1 w-full py-2.5 px-3 rounded-xl bg-surface-container-high hover:bg-surface-container text-deep-navy text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-98 shadow-xs"
       >
         <Phone className="w-3.5 h-3.5 text-primary-container" />
-        <span>Call Customer ({customerPhone})</span>
+        <span>{t('driver.callCustomer', 'Call Customer')} ({customerPhone})</span>
       </button>
 
       {/* Call Customer Modal */}
@@ -154,14 +156,14 @@ export const ActiveOrderCard: React.FC = () => {
                 <Phone className="w-5 h-5 animate-pulse" />
               </div>
               <div>
-                <h4 className="font-bold text-sm text-deep-navy">Contact Consignee</h4>
+                <h4 className="font-bold text-sm text-deep-navy">{t('driver.contactConsignee')}</h4>
                 <p className="text-xs text-text-muted">{activeOrder.consignee}</p>
               </div>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
               <div>
-                <span className="text-[10px] text-text-muted">Direct Phone Line</span>
+                <span className="text-[10px] text-text-muted">{t('driver.directPhoneLine')}</span>
                 <div className="font-mono font-bold text-sm text-deep-navy">{customerPhone}</div>
               </div>
               <button
@@ -171,10 +173,10 @@ export const ActiveOrderCard: React.FC = () => {
                 {copiedPhone ? (
                   <>
                     <Check className="w-3 h-3 text-status-success" />
-                    <span>Copied!</span>
+                    <span>{t('common.copied')}</span>
                   </>
                 ) : (
-                  <span>Copy</span>
+                  <span>{t('common.copy')}</span>
                 )}
               </button>
             </div>
@@ -183,14 +185,14 @@ export const ActiveOrderCard: React.FC = () => {
               href={`tel:${customerPhone}`}
               className="w-full py-2.5 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold text-center shadow-xs transition-colors"
             >
-              Dial Now
+              {t('driver.dialNow')}
             </a>
 
             <button
               onClick={() => setCallModalOpen(false)}
               className="w-full py-2 text-xs font-semibold text-text-muted hover:text-deep-navy transition-colors"
             >
-              Close
+              {t('common.close')}
             </button>
           </div>
         </div>

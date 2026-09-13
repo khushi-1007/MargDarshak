@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFleet } from '../context/FleetContext';
+import { useTranslation } from '../context/LanguageContext';
 import { Badge } from '../components/ui/Badge';
 import { FleetMap } from '../components/map/FleetMap';
 import {
@@ -35,6 +36,7 @@ export const Routes: React.FC = () => {
     setSelectedVehicleId,
     openRouteComparisonForIncident,
   } = useFleet();
+  const { t } = useTranslation();
 
   const [selectedRouteVehicleId, setSelectedRouteVehicleId] = useState<string>('');
   const [viewMode, setViewMode] = useState<'MANIFEST' | 'MAP'>('MANIFEST');
@@ -70,7 +72,7 @@ export const Routes: React.FC = () => {
             <span className="text-xs font-medium text-text-muted">• OR-Tools Deterministic Sequence</span>
           </div>
           <h1 className="text-xl font-bold text-deep-navy tracking-tight mt-1">
-            Active Routes & Waypoint Sequences
+            {t('routes.title', 'Active Routes & Waypoint Sequences')}
           </h1>
           <p className="text-xs text-text-secondary mt-0.5">
             Turn-by-turn stop schedules, detour penalties, and vehicle load redistribution audits
@@ -89,7 +91,7 @@ export const Routes: React.FC = () => {
               }`}
             >
               <ListOrdered className="w-3.5 h-3.5 text-primary" />
-              <span>Manifest View</span>
+              <span>{t('routes.manifestView', 'Manifest View')}</span>
             </button>
             <button
               onClick={() => {
@@ -103,7 +105,7 @@ export const Routes: React.FC = () => {
               }`}
             >
               <Navigation className="w-3.5 h-3.5 text-primary" />
-              <span>Live Route Map</span>
+              <span>{t('routes.liveRouteMap', 'Live Route Map')}</span>
             </button>
           </div>
 

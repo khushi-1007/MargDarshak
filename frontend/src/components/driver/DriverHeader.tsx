@@ -2,6 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Truck, ShieldCheck, ArrowLeftRight, Wifi } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
+import { LanguageSelector } from '../common/LanguageSelector';
 
 interface DriverHeaderProps {
   onOpenMenu: () => void;
@@ -10,13 +12,14 @@ interface DriverHeaderProps {
 export const DriverHeader: React.FC<DriverHeaderProps> = ({ onOpenMenu }) => {
   const navigate = useNavigate();
   const { activeDriver, activeDriverVehicle, wsStatus } = useFleet();
+  const { t } = useTranslation();
 
   return (
     <header className="fixed top-0 inset-x-0 z-40 bg-[#0B1220] border-b border-slate-800/80 text-white select-none shadow-md">
       <div className="max-w-[1720px] mx-auto h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
-        {/* LEFT: MargDarshak Brand + Driver App Tag */}
+        {/* LEFT: MargDarshak Brand + Driver App Tag + Language Selector */}
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/driver')}>
+          <div className="flex items-center gap-2.5 cursor-pointer shrink-0" onClick={() => navigate('/driver')}>
             {/* MargDarshak SVG Logo Emblem */}
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" className="h-8 w-8 shrink-0" fill="none">
               <rect width="40" height="40" rx="8" fill="#1E293B" />
@@ -30,31 +33,27 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ onOpenMenu }) => {
                 MargDarshak
               </span>
               <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
-                Smarter Routes. Safer Deliveries.
+                {t('driver.smarterRoutes', 'Driver Console')}
               </span>
             </div>
           </div>
 
-          <div className="hidden md:block h-6 w-px bg-slate-800" />
+          <div className="hidden sm:block h-6 w-px bg-slate-800 shrink-0" />
 
-          <div className="hidden md:flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded bg-primary-container text-white text-[11px] font-semibold tracking-wide uppercase">
-              Driver App
-            </span>
-            <span className="text-slate-400 text-xs hidden lg:inline">Jaipur Hub Ops</span>
-          </div>
+          {/* Top-level Language Selector right at the beginning */}
+          <LanguageSelector theme="dark" />
         </div>
 
-        {/* RIGHT: Vehicle info, Pilot Identity, Online status, Hamburger menu */}
+        {/* RIGHT: Vehicle info, Pilot Identity, Online status, Fleet Manager Switcher, Hamburger menu */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Quick Switch to Fleet Manager Dashboard */}
           <button
             onClick={() => navigate('/')}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-medium border border-slate-700/80 transition-colors shadow-xs"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-medium border border-slate-700/80 transition-colors shadow-xs cursor-pointer"
             title="Switch to Fleet Manager Dashboard"
           >
             <ArrowLeftRight className="w-3.5 h-3.5 text-status-info" />
-            <span>Fleet Manager</span>
+            <span>{t('driver.switchFleetManager', 'Fleet Manager')}</span>
           </button>
 
           {/* Vehicle Identifier */}
@@ -82,7 +81,7 @@ export const DriverHeader: React.FC<DriverHeaderProps> = ({ onOpenMenu }) => {
               <div className="flex items-center gap-1 text-[11px] text-emerald-400">
                 <Wifi className={`w-2.5 h-2.5 ${wsStatus === 'CONNECTED' ? 'text-emerald-400' : wsStatus === 'RECONNECTING' ? 'text-amber-400 animate-pulse' : 'text-red-400'}`} />
                 <span className={wsStatus === 'CONNECTED' ? 'text-emerald-400' : wsStatus === 'RECONNECTING' ? 'text-amber-400' : 'text-red-400'}>
-                  {wsStatus === 'CONNECTED' ? 'Live GPS • Synced' : wsStatus === 'RECONNECTING' ? 'Reconnecting...' : 'Offline'}
+                  {wsStatus === 'CONNECTED' ? t('driver.liveGpsSynced') : wsStatus === 'RECONNECTING' ? t('driver.reconnecting') : t('driver.offline')}
                 </span>
               </div>
             </div>

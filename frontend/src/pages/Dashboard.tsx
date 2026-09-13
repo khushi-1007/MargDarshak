@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFleet } from '../context/FleetContext';
+import { useTranslation } from '../context/LanguageContext';
 import { StatCard } from '../components/ui/StatCard';
 import { FleetMap } from '../components/map/FleetMap';
 import { ActiveRoutesTable } from '../components/routes/ActiveRoutesTable';
@@ -26,6 +27,7 @@ import {
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const {
     metrics,
     orders,
@@ -90,12 +92,12 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-status-success animate-pulse" />
               <h1 className="text-base font-bold text-deep-navy tracking-tight">
-                MargDarshak Control Tower — Jaipur Real-Time Operations
+                {t('dashboard.controlTowerTitle')}
               </h1>
             </div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-surface-container text-secondary text-xs font-medium">
-              <span className="text-ai-intelligence font-mono text-[11px] font-bold">LIVE TELEMETRY</span>
-              <span>• "When reality changes, the route changes with it."</span>
+              <span className="text-ai-intelligence font-mono text-[11px] font-bold">{t('dashboard.liveTelemetry')}</span>
+              <span>• {t('dashboard.realityMotto')}</span>
             </div>
           </div>
 
@@ -109,7 +111,7 @@ export const Dashboard: React.FC = () => {
               title="Run Google OR-Tools dynamic solver on real backend"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isOptimising ? 'animate-spin' : ''}`} />
-              <span>{isOptimising ? 'Solving OR-Tools...' : 'Run Re-optimisation'}</span>
+              <span>{isOptimising ? t('dashboard.solvingOrTools') : t('dashboard.runReoptimisation')}</span>
             </button>
 
             <button
@@ -120,7 +122,7 @@ export const Dashboard: React.FC = () => {
               title="Inject urgent medical consignment to Fortis Hospital"
             >
               <PlusCircle className="w-3.5 h-3.5 text-status-warning" />
-              <span>Add Priority Order (P-101)</span>
+              <span>{t('dashboard.addPriorityOrder')}</span>
             </button>
 
             <button
@@ -130,7 +132,7 @@ export const Dashboard: React.FC = () => {
               title="Open Disruption Stress-Testing Lab"
             >
               <Zap className="w-3.5 h-3.5 text-ai-intelligence" />
-              <span>Simulate Event</span>
+              <span>{t('dashboard.simulateEvent')}</span>
             </button>
 
             <button
@@ -140,7 +142,7 @@ export const Dashboard: React.FC = () => {
               title="Download real Jaipur Operational Manifest (JSON & CSV)"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Export Plan</span>
+              <span>{t('dashboard.exportPlan')}</span>
             </button>
           </div>
         </div>
@@ -152,10 +154,10 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-300 font-mono text-[10px] font-bold border border-indigo-400/30 flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-amber-300" />
-              <span>JUDGE DEMO FLOW</span>
+              <span>{t('dashboard.judgeDemoFlow')}</span>
             </span>
             <span className="text-xs font-semibold text-slate-200">
-              Interactive 60-Second Presentation Sequence:
+              {t('dashboard.presentationSequence')}
             </span>
           </div>
 
@@ -171,7 +173,7 @@ export const Dashboard: React.FC = () => {
                   : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700'
               }`}
             >
-              <span>1. Normal Baseline</span>
+              <span>{t('dashboard.normalBaseline')}</span>
             </button>
 
             <button
@@ -185,7 +187,7 @@ export const Dashboard: React.FC = () => {
                   : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700'
               }`}
             >
-              <span>2. Inject Urgent P-101 Order</span>
+              <span>{t('dashboard.injectUrgentP101')}</span>
             </button>
 
             <button
@@ -199,7 +201,7 @@ export const Dashboard: React.FC = () => {
                   : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700'
               }`}
             >
-              <span>3. Vehicle Breakdown (V03)</span>
+              <span>{t('dashboard.breakdownV03')}</span>
             </button>
 
             <button
@@ -213,7 +215,7 @@ export const Dashboard: React.FC = () => {
                   : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border border-slate-700'
               }`}
             >
-              <span>4. Solve with Google OR-Tools</span>
+              <span>{t('dashboard.solveOrTools')}</span>
             </button>
 
             <button
@@ -223,7 +225,7 @@ export const Dashboard: React.FC = () => {
               }}
               className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <span>5. View Driver Terminal →</span>
+              <span>{t('dashboard.viewDriverTerminal')}</span>
             </button>
           </div>
         </div>
@@ -263,11 +265,11 @@ export const Dashboard: React.FC = () => {
         {/* 5 High-Density KPI Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <StatCard
-            label="Operating Cost"
+            label={t('dashboard.operatingCost')}
             value={`₹${metrics.totalOperatingCostInr.toLocaleString()}`}
-            badge={`₹${metrics.savedCostInr} Saved`}
+            badge={`₹${metrics.savedCostInr} ${t('dashboard.saved')}`}
             badgeType="success"
-            trendText="15% fuel eff."
+            trendText={`15% ${t('dashboard.fuelEff')}`}
             trendDirection="up"
             progressPct={78}
             progressColor="bg-ai-intelligence"
@@ -275,11 +277,11 @@ export const Dashboard: React.FC = () => {
           />
 
           <StatCard
-            label="On-Time SLA"
+            label={t('dashboard.onTimeSla')}
             value={`${metrics.onTimeSlaPct}%`}
-            badge={metrics.onTimeSlaPct > 90 ? 'Nominal' : 'At Risk'}
+            badge={metrics.onTimeSlaPct > 90 ? t('dashboard.nominal') : t('dashboard.atRisk')}
             badgeType={metrics.onTimeSlaPct > 90 ? 'success' : 'danger'}
-            trendText={metrics.onTimeSlaPct > 90 ? '↑ Nominal SLA' : '↓ Degraded SLA'}
+            trendText={metrics.onTimeSlaPct > 90 ? `↑ ${t('dashboard.nominalSla')}` : `↓ ${t('dashboard.degradedSla')}`}
             trendDirection={metrics.onTimeSlaPct > 90 ? 'up' : 'down'}
             progressPct={metrics.onTimeSlaPct}
             progressColor={metrics.onTimeSlaPct > 90 ? 'bg-status-success' : 'bg-status-critical'}
@@ -287,11 +289,11 @@ export const Dashboard: React.FC = () => {
           />
 
           <StatCard
-            label="Active Fleet"
+            label={t('dashboard.activeFleet')}
             value={`${metrics.activeVehiclesCount} / ${metrics.totalVehiclesCount}`}
-            badge={metrics.disruptedVehiclesCount > 0 ? `${metrics.disruptedVehiclesCount} Disrupted` : '100% Deployed'}
+            badge={metrics.disruptedVehiclesCount > 0 ? `${metrics.disruptedVehiclesCount} ${t('dashboard.disrupted')}` : t('dashboard.deployed')}
             badgeType={metrics.disruptedVehiclesCount > 0 ? 'danger' : 'success'}
-            trendText={metrics.disruptedVehiclesCount > 0 ? `${metrics.disruptedVehiclesCount} unit${metrics.disruptedVehiclesCount > 1 ? 's' : ''} in breakdown` : `${metrics.activeVehiclesCount} Operational`}
+            trendText={metrics.disruptedVehiclesCount > 0 ? `${metrics.disruptedVehiclesCount} ${t('dashboard.unitInBreakdown')}` : `${metrics.activeVehiclesCount} ${t('dashboard.operational')}`}
             trendDirection={metrics.disruptedVehiclesCount > 0 ? 'down' : 'up'}
             progressPct={(metrics.activeVehiclesCount / (metrics.totalVehiclesCount || 1)) * 100}
             progressColor={metrics.disruptedVehiclesCount > 0 ? 'bg-status-critical' : 'bg-primary-container'}
@@ -299,11 +301,11 @@ export const Dashboard: React.FC = () => {
           />
 
           <StatCard
-            label="Total Orders"
+            label={t('dashboard.totalOrders')}
             value={metrics.totalOrdersCount}
-            badge={`${highPriorityOrdersCount} High Priority`}
+            badge={`${highPriorityOrdersCount} ${t('dashboard.highPriority')}`}
             badgeType="warning"
-            trendText={`+${metrics.pendingPickupCount} in queue`}
+            trendText={`+${metrics.pendingPickupCount} ${t('dashboard.inQueue')}`}
             trendDirection="neutral"
             progressPct={85}
             progressColor="bg-primary-container"
@@ -311,11 +313,11 @@ export const Dashboard: React.FC = () => {
           />
 
           <StatCard
-            label="Total Distance"
+            label={t('dashboard.totalDistance')}
             value={`${metrics.totalDistanceKm} km`}
-            badge="Optimised"
+            badge={t('dashboard.optimised')}
             badgeType="info"
-            trendText="↓ 18% vs manual"
+            trendText={`↓ 18% ${t('dashboard.vsManual')}`}
             trendDirection="up"
             progressPct={72}
             progressColor="bg-secondary-container"
@@ -333,7 +335,7 @@ export const Dashboard: React.FC = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="bg-surface-main p-2.5 rounded-xl border border-border-subtle flex items-center justify-between">
                 <div className="flex flex-col leading-tight">
-                  <span className="text-[11px] text-text-muted">North Sector SLA</span>
+                  <span className="text-[11px] text-text-muted">{t('dashboard.northSectorSla')}</span>
                   <span className="text-xs font-bold text-deep-navy font-mono mt-0.5">98.2%</span>
                 </div>
                 <CheckCircle className="w-4 h-4 text-status-success" />
@@ -341,9 +343,9 @@ export const Dashboard: React.FC = () => {
 
               <div className="bg-surface-main p-2.5 rounded-xl border border-border-subtle flex items-center justify-between">
                 <div className="flex flex-col leading-tight">
-                  <span className="text-[11px] text-text-muted">Central & C-Scheme</span>
+                  <span className="text-[11px] text-text-muted">{t('dashboard.centralSector')}</span>
                   <span className="text-xs font-bold text-status-critical font-mono mt-0.5">
-                    {cascadingFailureActive ? 'Severe Stall' : 'Re-routed (Saved)'}
+                    {cascadingFailureActive ? t('dashboard.severeStall') : t('dashboard.reroutedSaved')}
                   </span>
                 </div>
                 <AlertTriangle className="w-4 h-4 text-status-critical" />
@@ -351,16 +353,16 @@ export const Dashboard: React.FC = () => {
 
               <div className="bg-surface-main p-2.5 rounded-xl border border-border-subtle flex items-center justify-between">
                 <div className="flex flex-col leading-tight">
-                  <span className="text-[11px] text-text-muted">South Industrial</span>
-                  <span className="text-xs font-bold text-deep-navy font-mono mt-0.5">Nominal</span>
+                  <span className="text-[11px] text-text-muted">{t('dashboard.southIndustrial')}</span>
+                  <span className="text-xs font-bold text-deep-navy font-mono mt-0.5">{t('dashboard.nominal')}</span>
                 </div>
                 <CheckCircle className="w-4 h-4 text-status-info" />
               </div>
 
               <div className="bg-surface-main p-2.5 rounded-xl border border-border-subtle flex items-center justify-between">
                 <div className="flex flex-col leading-tight">
-                  <span className="text-[11px] text-text-muted">Weather Ingestion</span>
-                  <span className="text-xs font-bold text-status-warning font-mono mt-0.5">Rain: 2 PM</span>
+                  <span className="text-[11px] text-text-muted">{t('dashboard.weatherIngestion')}</span>
+                  <span className="text-xs font-bold text-status-warning font-mono mt-0.5">{t('dashboard.rainEta')}</span>
                 </div>
                 <Clock className="w-4 h-4 text-status-warning" />
               </div>
@@ -386,11 +388,11 @@ export const Dashboard: React.FC = () => {
               <div className="flex items-center justify-between pb-2.5 border-b border-border-subtle">
                 <div className="flex items-center gap-2">
                   <h3 className="text-xs font-bold text-deep-navy">
-                    Incident Order Reassignment Audit
+                    {t('dashboard.reassignmentAudit')}
                   </h3>
                 </div>
                 <span className="px-2 py-0.5 rounded bg-purple-100 text-ai-intelligence text-[10px] font-bold">
-                  OR-Tools Matched
+                  {t('dashboard.orToolsMatched')}
                 </span>
               </div>
 
@@ -401,7 +403,7 @@ export const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono font-bold text-deep-navy text-xs">#1008</span>
                       <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[10px] font-bold">
-                        Medical Supplies
+                        {t('dashboard.medicalSupplies')}
                       </span>
                     </div>
                     <span className="text-[11px] text-text-secondary mt-0.5">
@@ -411,7 +413,7 @@ export const Dashboard: React.FC = () => {
                   <div className="text-right">
                     <div className="font-mono font-bold text-ai-intelligence text-xs">V03 → V01</div>
                     <span className="text-[10px] text-status-success font-semibold flex items-center gap-0.5 justify-end">
-                      <CheckCircle className="w-3 h-3" /> SLA Preserved (12:15 PM)
+                      <CheckCircle className="w-3 h-3" /> {t('dashboard.slaPreserved')} (12:15 PM)
                     </span>
                   </div>
                 </div>
@@ -422,7 +424,7 @@ export const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono font-bold text-deep-navy text-xs">#1012</span>
                       <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-900 text-[10px] font-semibold">
-                        Cold Storage Frozen
+                        {t('dashboard.coldStorageFrozen')}
                       </span>
                     </div>
                     <span className="text-[11px] text-text-secondary mt-0.5">
@@ -432,7 +434,7 @@ export const Dashboard: React.FC = () => {
                   <div className="text-right">
                     <div className="font-mono font-bold text-ai-intelligence text-xs">V03 → V01</div>
                     <span className="text-[10px] text-status-success font-semibold flex items-center gap-0.5 justify-end">
-                      <CheckCircle className="w-3 h-3" /> Delay -28 min
+                      <CheckCircle className="w-3 h-3" /> {t('dashboard.delay')} -28 min
                     </span>
                   </div>
                 </div>
@@ -443,7 +445,7 @@ export const Dashboard: React.FC = () => {
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono font-bold text-deep-navy text-xs">#1016</span>
                       <span className="px-1.5 py-0.2 rounded bg-rose-100 text-status-critical text-[10px] font-semibold">
-                        Gourmet Perishables
+                        {t('dashboard.gourmetPerishables')}
                       </span>
                     </div>
                     <span className="text-[11px] text-text-secondary mt-0.5">
@@ -453,7 +455,7 @@ export const Dashboard: React.FC = () => {
                   <div className="text-right">
                     <div className="font-mono font-bold text-ai-intelligence text-xs">V03 → V04</div>
                     <span className="text-[10px] text-status-success font-semibold flex items-center gap-0.5 justify-end">
-                      <CheckCircle className="w-3 h-3" /> Delay -14 min
+                      <CheckCircle className="w-3 h-3" /> {t('dashboard.delay')} -14 min
                     </span>
                   </div>
                 </div>
@@ -461,12 +463,12 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="mt-3 pt-2 border-t border-border-subtle flex items-center justify-between text-[11px] text-text-muted">
-              <span>Capacity delta absorbed: 220kg + 110kg</span>
+              <span>{t('dashboard.capacityDeltaAbsorbed')}: 220kg + 110kg</span>
               <button
                 onClick={() => openRouteComparisonForIncident('VEHICLE_BREAKDOWN')}
                 className="text-primary font-semibold hover:underline flex items-center gap-0.5"
               >
-                <span>View Mathematical Delta</span>
+                <span>{t('dashboard.viewMathematicalDelta')}</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </div>

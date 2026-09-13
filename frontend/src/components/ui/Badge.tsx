@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface BadgeProps {
   status: string;
@@ -7,6 +8,7 @@ interface BadgeProps {
 }
 
 export const Badge: React.FC<BadgeProps> = ({ status, type = 'generic', className = '' }) => {
+  const { t } = useTranslation();
   let style = 'bg-surface-container text-text-secondary';
   let dotColor = 'bg-text-secondary';
 
@@ -30,12 +32,14 @@ export const Badge: React.FC<BadgeProps> = ({ status, type = 'generic', classNam
     return text.replace(/_/g, ' ');
   };
 
+  const displayText = t(`status.${s}`, formatText(status));
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide uppercase ${style} ${className}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-      <span>{formatText(status)}</span>
+      <span>{displayText}</span>
     </span>
   );
 };

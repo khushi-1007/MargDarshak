@@ -234,7 +234,21 @@ export const api = {
   async getEvents(): Promise<DisruptionEvent[]> {
     try {
       const backendEvents = await eventApi.listEvents({ limit: 50 });
-      return backendEvents.map(normalizeEvent);
+      const normalized = backendEvents.map(normalizeEvent);
+
+      // Deduplicate events to eliminate repeated simulation triggers while preserving distinct incidents
+      const seen = new Set<string>();
+      const deduplicated: DisruptionEvent[] = [];
+      for (const evt of normalized) {
+        const cleanDesc = (evt.description || '').trim().toLowerCase();
+        const cleanTitle = (evt.title || '').trim().toLowerCase();
+        const sig = cleanDesc ? `${evt.type}|${cleanDesc}` : `${evt.type}|${cleanTitle}`;
+        if (!seen.has(sig)) {
+          seen.add(sig);
+          deduplicated.push(evt);
+        }
+      }
+      return deduplicated;
     } catch (err) {
       console.error('Failed to fetch events from backend:', err);
       throw err;

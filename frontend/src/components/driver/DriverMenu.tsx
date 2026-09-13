@@ -15,6 +15,7 @@ import {
   ArrowLeftRight,
 } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface DriverMenuProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export const DriverMenu: React.FC<DriverMenuProps> = ({
     drivers,
     setActiveDriverId,
   } = useFleet();
+  const { t } = useTranslation();
 
   if (!isOpen) return null;
 
@@ -51,7 +53,7 @@ export const DriverMenu: React.FC<DriverMenuProps> = ({
               <div className="w-7 h-7 rounded-lg bg-primary-container flex items-center justify-center font-bold text-xs">
                 MD
               </div>
-              <span className="font-bold text-sm">MargDarshak Driver</span>
+              <span className="font-bold text-sm">MargDarshak {t('driver.driverApp')}</span>
             </div>
             <button
               onClick={onClose}
@@ -76,14 +78,14 @@ export const DriverMenu: React.FC<DriverMenuProps> = ({
                 <span className="font-bold text-deep-navy text-sm">{activeDriver.name}</span>
                 <span className="text-xs font-mono text-text-muted">ID: {activeDriver.id}</span>
                 <span className="text-[11px] text-text-secondary mt-0.5">
-                  Vehicle: <strong className="text-deep-navy">{activeDriverVehicle?.id || 'V01'}</strong> ({activeDriverVehicle?.licensePlate || 'RJ-14-UB-2041'})
+                  {t('vehicle.unit')}: <strong className="text-deep-navy">{activeDriverVehicle?.id || 'V01'}</strong> ({activeDriverVehicle?.licensePlate || 'RJ-14-UB-2041'})
                 </span>
               </div>
             </div>
 
             {/* Shift hours indicator */}
             <div className="mt-3 p-2 rounded-lg bg-white border border-border-subtle flex items-center justify-between text-xs font-mono">
-              <span className="text-text-muted">Duty Shift</span>
+              <span className="text-text-muted">{t('driver.dutyShift')}</span>
               <span className="font-bold text-status-success">
                 {activeDriver.hoursUsed}h / {activeDriver.hoursLimit}h (Compliant)
               </span>
@@ -91,7 +93,7 @@ export const DriverMenu: React.FC<DriverMenuProps> = ({
 
             {/* Driver switcher for demo / testing */}
             <div className="mt-2 text-[10px] text-text-muted flex items-center justify-between">
-              <span>Switch Pilot Profile:</span>
+              <span>{t('driver.switchPilotProfile')}:</span>
               <select
                 value={activeDriver.id}
                 onChange={(e) => setActiveDriverId(e.target.value)}
@@ -113,7 +115,7 @@ export const DriverMenu: React.FC<DriverMenuProps> = ({
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-blue-50 text-primary-container transition-colors"
             >
               <LayoutDashboard className="w-4 h-4" />
-              <span>Driver Dashboard</span>
+              <span>{t('navigation.driverDashboard')}</span>
             </button>
 
             <button
@@ -124,7 +126,7 @@ export const DriverMenu: React.FC<DriverMenuProps> = ({
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-deep-navy hover:bg-slate-100 transition-colors"
             >
               <RouteIcon className="w-4 h-4 text-text-secondary" />
-              <span>My Route Manifest</span>
+              <span>{t('driver.myRouteManifest')}</span>
             </button>
 
             <button
@@ -135,7 +137,7 @@ export const DriverMenu: React.FC<DriverMenuProps> = ({
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-deep-navy hover:bg-slate-100 transition-colors"
             >
               <Package className="w-4 h-4 text-text-secondary" />
-              <span>Today's Deliveries ({driverKpis.completedDeliveries}/{driverKpis.totalDeliveries})</span>
+              <span>{t('driver.todaysDeliveries')} ({driverKpis.completedDeliveries}/{driverKpis.totalDeliveries})</span>
             </button>
 
             <button
@@ -146,7 +148,7 @@ export const DriverMenu: React.FC<DriverMenuProps> = ({
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-deep-navy hover:bg-slate-100 transition-colors"
             >
               <Bell className="w-4 h-4 text-text-secondary" />
-              <span>Dispatch Notifications</span>
+              <span>{t('driver.dispatchNotifications')}</span>
             </button>
           </nav>
         </div>
@@ -161,7 +163,7 @@ export const DriverMenu: React.FC<DriverMenuProps> = ({
             className="w-full py-2.5 px-3 rounded-xl bg-primary-container hover:bg-primary text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs"
           >
             <ArrowLeftRight className="w-4 h-4" />
-            <span>Switch to Fleet Manager</span>
+            <span>{t('driver.switchFleetManager')}</span>
           </button>
 
           <button
@@ -171,7 +173,7 @@ export const DriverMenu: React.FC<DriverMenuProps> = ({
             }}
             className="w-full py-2 text-xs font-semibold text-text-muted hover:text-deep-navy text-center"
           >
-            Sign Out
+            {t('driver.signOut')}
           </button>
         </div>
       </div>

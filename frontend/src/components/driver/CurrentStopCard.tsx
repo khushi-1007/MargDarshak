@@ -10,6 +10,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 
 export const CurrentStopCard: React.FC = () => {
   const {
@@ -18,6 +19,7 @@ export const CurrentStopCard: React.FC = () => {
     activeOrder,
     markOrderDelivered,
   } = useFleet();
+  const { t } = useTranslation();
 
   const [isDelivering, setIsDelivering] = useState<boolean>(false);
   const [navigating, setNavigating] = useState<boolean>(false);
@@ -30,17 +32,25 @@ export const CurrentStopCard: React.FC = () => {
       : stops[stops.length - 1];
 
   const handleMarkDelivered = async () => {
-    if (!currentStop || !currentStop.orderId) return;
-    setIsDelivering(true);
-    await markOrderDelivered(currentStop.orderId);
-    setIsDelivering(false);
-    setConfirmModalOpen(false);
+    if (!currentStop) return;
+    try {
+      setIsDelivering(true);
+      await markOrderDelivered(
+        currentStop.orderId || currentStop.backendOrderId || '',
+        currentStop.stopNumber
+      );
+    } catch (err) {
+      console.error('Error marking delivered:', err);
+    } finally {
+      setIsDelivering(false);
+      setConfirmModalOpen(false);
+    }
   };
 
   if (!currentStop) {
     return (
       <div className="bg-surface-main p-4 rounded-2xl border border-border-subtle shadow-xs text-center text-xs text-text-muted">
-        All scheduled stops completed for today's shift. Head back to depot!
+        {t('driver.allStopsCompleted', "All scheduled stops completed for today's shift. Head back to depot!")}
       </div>
     );
   }
@@ -52,16 +62,16 @@ export const CurrentStopCard: React.FC = () => {
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-primary-container animate-pulse" />
           <h3 className="text-xs font-bold text-deep-navy uppercase tracking-wider">
-            Current Stop Details
+            {t('driver.currentStopDetails', 'Current Stop Details')}
           </h3>
           <span className="px-2 py-0.5 rounded-full bg-blue-50 text-primary-container font-mono text-[10px] font-bold">
-            Stop {currentStopIndex + 1} of {stops.length}
+            {t('driver.stop', 'Stop')} {currentStopIndex + 1} / {stops.length}
           </span>
         </div>
 
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-status-success font-semibold text-xs border border-emerald-200/60">
           <Clock className="w-3.5 h-3.5" />
-          <span>ETA: {currentStop.eta} • On Schedule</span>
+          <span>ETA: {currentStop.eta} • {t('driver.onSchedule', 'On Schedule')}</span>
         </div>
       </div>
 
@@ -74,12 +84,12 @@ export const CurrentStopCard: React.FC = () => {
             </span>
             {currentStop.isPriority && (
               <span className="px-1.5 py-0.2 rounded bg-status-critical/15 text-status-critical font-bold text-[10px]">
-                PRIORITY
+                {t('status.CRITICAL', 'PRIORITY')}
               </span>
             )}
             {currentStop.absorbedFromVehicleId && (
               <span className="px-1.5 py-0.2 rounded bg-purple-100 text-ai-intelligence font-bold text-[10px]">
-                Absorbed from {currentStop.absorbedFromVehicleId}
+                {t('driver.absorbedFrom', 'Absorbed from')} {currentStop.absorbedFromVehicleId}
               </span>
             )}
           </div>
@@ -94,14 +104,14 @@ export const CurrentStopCard: React.FC = () => {
         </div>
 
         <div className="flex flex-col justify-center text-xs space-y-1 md:border-l md:border-slate-200 md:pl-4">
-          <div className="text-text-muted text-[11px]">Consignment Specs</div>
+          <div className="text-text-muted text-[11px]">{t('driver.consignmentSpecs', 'Consignment Specs')}</div>
           <div className="font-semibold text-deep-navy">
             {activeOrder?.loadType === 'COLD_CHAIN'
               ? '❄️ Cold Chain Pharma (2°-8°C)'
               : 'Standard Freight Delivery'}
           </div>
           <div className="text-[11px] text-text-secondary">
-            Time Window: {activeOrder?.timeWindowStart || '11:00 AM'} –{' '}
+            {t('driver.timeWindow', 'Delivery Window')}: {activeOrder?.timeWindowStart || '11:00 AM'} –{' '}
             {activeOrder?.timeWindowEnd || '01:00 PM'}
           </div>
         </div>
@@ -118,7 +128,7 @@ export const CurrentStopCard: React.FC = () => {
           </div>
           <button
             onClick={() => setNavigating(false)}
-            className="text-white/80 hover:text-white underline text-[11px]"
+            className="text-white/80 hover:text-white underline text-[11px] cursor-pointer"
           >
             End Nav
           </button>
@@ -128,17 +138,17 @@ export const CurrentStopCard: React.FC = () => {
       {/* Action Buttons: MARK AS DELIVERED & NAVIGATE */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
         <button
-          onClick={() => setConfirmModalOpen(true)}
+          onClick={handleMarkDelivered}
           disabled={isDelivering || currentStop.completed}
-          className="py-2.5 px-4 rounded-xl bg-status-success hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
+          className="py-2.5 px-4 rounded-xl bg-status-success hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50 cursor-pointer"
         >
           <CheckCircle2 className="w-4 h-4" />
           <span>
             {currentStop.completed
-              ? 'Order Already Delivered ✓'
+              ? `${t('driver.orderDelivered', 'Order Delivered')} ✓`
               : isDelivering
-              ? 'Processing Delivery...'
-              : 'MARK AS DELIVERED'}
+              ? t('driver.processingDelivery', 'Processing Delivery...')
+              : t('driver.markAsDelivered', 'Mark as Delivered')}
           </span>
         </button>
 
@@ -146,17 +156,17 @@ export const CurrentStopCard: React.FC = () => {
           onClick={() => {
             const lat = currentStop.lat || 26.9124;
             const lng = currentStop.lng || 75.7873;
-            const label = encodeURIComponent(currentStop.name || 'Delivery Stop');
             window.open(
               `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=&travelmode=driving`,
               '_blank'
             );
             setNavigating(true);
+            setTimeout(() => setNavigating(false), 4000);
           }}
-          className="py-2.5 px-4 rounded-xl bg-primary-container hover:bg-primary text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 active:scale-98"
+          className="py-2.5 px-4 rounded-xl bg-primary-container hover:bg-primary text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
         >
           <Navigation className="w-4 h-4" />
-          <span>{navigating ? 'Navigating ↗' : 'NAVIGATE TO STOP'}</span>
+          <span>{navigating ? t('driver.navigating', 'Navigating...') : t('driver.navigation', 'Navigation')}</span>
         </button>
       </div>
 
@@ -169,8 +179,8 @@ export const CurrentStopCard: React.FC = () => {
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
-                <h4 className="font-bold text-sm text-deep-navy">Confirm Consignment Handover</h4>
-                <p className="text-xs text-text-muted">Order ID: {currentStop.orderId}</p>
+                <h4 className="font-bold text-sm text-deep-navy">{t('driver.confirmHandover')}</h4>
+                <p className="text-xs text-text-muted">{t('orders.orderId')}: {currentStop.orderId}</p>
               </div>
             </div>
 
@@ -183,13 +193,13 @@ export const CurrentStopCard: React.FC = () => {
                 onClick={() => setConfirmModalOpen(false)}
                 className="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-deep-navy text-xs font-semibold"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleMarkDelivered}
                 className="flex-1 py-2 rounded-xl bg-status-success hover:bg-emerald-700 text-white text-xs font-bold shadow-xs"
               >
-                Confirm Delivered
+                {t('driver.confirmDelivered')}
               </button>
             </div>
           </div>

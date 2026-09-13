@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFleet } from '../context/FleetContext';
+import { useTranslation } from '../context/LanguageContext';
 import { StatCard } from '../components/ui/StatCard';
 import {
   BarChart,
@@ -27,6 +28,7 @@ import {
 
 export const Analytics: React.FC = () => {
   const { metrics, routes } = useFleet();
+  const { t } = useTranslation();
 
   // Build planned vs actual from real routes (each route = one corridor)
   const corridorNames = [
@@ -111,7 +113,7 @@ export const Analytics: React.FC = () => {
             <span className="text-xs font-medium text-text-muted">• Historical Performance Audit</span>
           </div>
           <h1 className="text-xl font-bold text-deep-navy tracking-tight mt-1">
-            Fleet Intelligence & Operational Analytics
+            {t('analytics.title', 'Fleet Intelligence & Operational Analytics')}
           </h1>
           <p className="text-xs text-text-secondary mt-0.5">
             Planned vs actual path deviations, per-delivery cost economics, and recurring spatial bottlenecks
@@ -130,7 +132,7 @@ export const Analytics: React.FC = () => {
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          label="Cost Per Delivery"
+          label={t('vehicle.costPerKm', 'Cost Per Delivery')}
           value="₹622"
           badge="15% Lower vs Manual"
           badgeType="success"

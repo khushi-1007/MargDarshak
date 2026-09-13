@@ -10,10 +10,12 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 import { DisruptionEvent } from '../../types/event';
 
 export const RecentUpdates: React.FC = () => {
   const { events } = useFleet();
+  const { t } = useTranslation();
 
   const getEventIcon = (event: DisruptionEvent) => {
     if (event.title.includes('Delivered')) {
@@ -43,12 +45,12 @@ export const RecentUpdates: React.FC = () => {
         <div className="flex items-center gap-1.5">
           <Bell className="w-4 h-4 text-text-secondary" />
           <h3 className="text-xs font-bold text-deep-navy uppercase tracking-wider">
-            Recent Updates
+            {t('driver.recentUpdates')}
           </h3>
         </div>
         <span className="text-[10px] font-mono text-status-success font-semibold flex items-center gap-1">
           <span className="w-1.5 h-1.5 rounded-full bg-status-success animate-ping" />
-          Live Stream
+          {t('driver.liveStream')}
         </span>
       </div>
 
@@ -63,7 +65,7 @@ export const RecentUpdates: React.FC = () => {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-1">
                 <span className="font-bold text-deep-navy text-[11px] truncate">
-                  {evt.title}
+                  {t(('events.' + evt.type) as any, evt.title)}
                 </span>
                 <span className="text-[10px] font-mono text-text-muted shrink-0">
                   {evt.timestamp}

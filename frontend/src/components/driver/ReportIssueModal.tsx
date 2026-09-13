@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, X, CheckCircle2, Truck, ShieldAlert } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 import { IssueType, IssueSeverity } from '../../types/driver';
 
 interface ReportIssueModalProps {
@@ -10,6 +11,7 @@ interface ReportIssueModalProps {
 
 export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({ isOpen, onClose }) => {
   const { reportDriverIssue, activeDriver } = useFleet();
+  const { t } = useTranslation();
 
   const [issueType, setIssueType] = useState<IssueType>('Vehicle Issue');
   const [severity, setSeverity] = useState<IssueSeverity>('Medium');
@@ -48,9 +50,9 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({ isOpen, onCl
               <AlertTriangle className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white">Report Operational Issue</h3>
+              <h3 className="font-bold text-sm text-white">{t('driver.reportIssue')}</h3>
               <p className="text-[11px] text-slate-400">
-                Logged to Fleet Control Tower • Driver: {activeDriver.name}
+                {t('driver.loggedToControlTower')} • {t('vehicle.pilot')}: {activeDriver.name}
               </p>
             </div>
           </div>
@@ -68,9 +70,9 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({ isOpen, onCl
             <div className="w-14 h-14 rounded-full bg-emerald-100 text-status-success flex items-center justify-center shadow-md animate-bounce">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h4 className="font-bold text-base text-deep-navy">Issue Logged Successfully</h4>
+            <h4 className="font-bold text-base text-deep-navy">{t('driver.issueLoggedSuccess')}</h4>
             <p className="text-xs text-text-secondary max-w-xs">
-              Incident ticket broadcast to Fleet Manager console. Dynamic re-routing and roadside support initiated.
+              {t('driver.incidentBroadcast')}
             </p>
           </div>
         ) : (
@@ -78,25 +80,25 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({ isOpen, onCl
             {/* Issue Type */}
             <div>
               <label className="font-semibold text-deep-navy block mb-1.5">
-                Issue Type <span className="text-status-critical">*</span>
+                {t('driver.issueType')} <span className="text-status-critical">*</span>
               </label>
               <select
                 value={issueType}
                 onChange={(e) => setIssueType(e.target.value as IssueType)}
                 className="w-full h-10 px-3 rounded-xl border border-border-subtle bg-bg-canvas text-deep-navy font-medium focus:ring-2 focus:ring-primary-container focus:outline-none"
               >
-                <option value="Vehicle Issue">Vehicle Issue (Engine / Tire / Cooling)</option>
-                <option value="Delivery Issue">Delivery Issue (Customer Unavailable / Door Locked)</option>
-                <option value="Road Issue">Road Issue (Waterlogging / Road Block / Jam)</option>
-                <option value="Customer Issue">Customer Issue (Refused Consignment)</option>
-                <option value="Other">Other Operational Incident</option>
+                <option value="Vehicle Issue">{t('driver.issueVehicle')}</option>
+                <option value="Delivery Issue">{t('driver.issueDelivery')}</option>
+                <option value="Road Issue">{t('driver.issueRoad')}</option>
+                <option value="Customer Issue">{t('driver.issueCustomer')}</option>
+                <option value="Other">{t('driver.issueOther')}</option>
               </select>
             </div>
 
             {/* Severity */}
             <div>
               <label className="font-semibold text-deep-navy block mb-1.5">
-                Severity Level <span className="text-status-critical">*</span>
+                {t('driver.severityLevel')} <span className="text-status-critical">*</span>
               </label>
               <div className="grid grid-cols-4 gap-2">
                 {(['Low', 'Medium', 'High', 'Critical'] as IssueSeverity[]).map((lvl) => (
@@ -114,7 +116,7 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({ isOpen, onCl
                         : 'bg-surface-container-low text-deep-navy border-border-subtle hover:bg-slate-100'
                     }`}
                   >
-                    {lvl}
+                    {lvl === 'Low' ? t('statuses.low') : lvl === 'Medium' ? t('statuses.medium') : lvl === 'High' ? t('statuses.high') : t('statuses.critical')}
                   </button>
                 ))}
               </div>
@@ -123,14 +125,14 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({ isOpen, onCl
             {/* Description */}
             <div>
               <label className="font-semibold text-deep-navy block mb-1.5">
-                Incident Description <span className="text-status-critical">*</span>
+                {t('driver.incidentDescription')} <span className="text-status-critical">*</span>
               </label>
               <textarea
                 rows={3}
                 required
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g. Engine temperature rising near Tonk Road flyover; request coolant check or relief standby..."
+                placeholder={t('driver.incidentPlaceholder')}
                 className="w-full p-3 rounded-xl border border-border-subtle bg-bg-canvas text-deep-navy placeholder:text-text-muted focus:ring-2 focus:ring-primary-container focus:outline-none resize-none leading-relaxed"
               />
             </div>
@@ -142,14 +144,14 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({ isOpen, onCl
                 onClick={onClose}
                 className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-deep-navy font-semibold transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || !description.trim()}
                 className="flex-1 py-2.5 rounded-xl bg-status-critical hover:bg-red-700 text-white font-bold shadow-xs transition-all disabled:opacity-50 active:scale-98"
               >
-                {isSubmitting ? 'Logging...' : 'Submit Incident Ticket'}
+                {isSubmitting ? t('driver.submittingIncident') : t('driver.submitIncident')}
               </button>
             </div>
           </form>

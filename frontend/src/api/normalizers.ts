@@ -135,7 +135,7 @@ export function normalizeRouteStop(
     lat: order?.delivery_lat || 26.9124,
     lng: order?.delivery_lng || 75.7873,
     eta: s.planned_arrival || '12:00 PM',
-    completed: s.status === 'COMPLETED',
+    completed: s.status === 'COMPLETED' || order?.status === 'DELIVERED' || (order as any)?.sla_status === 'DELIVERED',
     absorbedFromVehicleId: undefined,
     isPriority: order?.priority === 'CRITICAL' || order?.priority === 'HIGH',
   };
@@ -202,7 +202,8 @@ export function normalizeEvent(e: BackendEvent): DisruptionEvent {
   else if (e.severity === 'HIGH' || e.severity === 'MEDIUM') severity = 'WARNING';
 
   let type: DisruptionType = 'TRAFFIC';
-  if (e.type in ['TRAFFIC', 'WEATHER', 'URGENT_ORDER', 'VEHICLE_BREAKDOWN', 'CASCADING_BREAKDOWN', 'ROAD_CLOSURE']) {
+  const validTypes = ['TRAFFIC', 'WEATHER', 'URGENT_ORDER', 'VEHICLE_BREAKDOWN', 'CASCADING_BREAKDOWN', 'ROAD_CLOSURE'];
+  if (validTypes.includes(e.type)) {
     type = e.type as DisruptionType;
   } else if (e.type === 'PRIORITY_ORDER') {
     type = 'URGENT_ORDER';

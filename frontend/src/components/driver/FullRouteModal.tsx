@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, MapPin, CheckCircle2, Clock, Route as RouteIcon, Truck, Building2 } from 'lucide-react';
 import { useFleet } from '../../context/FleetContext';
+import { useTranslation } from '../../context/LanguageContext';
 
 interface FullRouteModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface FullRouteModalProps {
 
 export const FullRouteModal: React.FC<FullRouteModalProps> = ({ isOpen, onClose }) => {
   const { activeDriverRoute, activeDriver, activeDriverVehicle } = useFleet();
+  const { t } = useTranslation();
 
   if (!isOpen) return null;
 
@@ -24,9 +26,9 @@ export const FullRouteModal: React.FC<FullRouteModalProps> = ({ isOpen, onClose 
               <RouteIcon className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white">Full Shift Route Itinerary</h3>
+              <h3 className="font-bold text-sm text-white">{t('driver.fullShiftRoute')}</h3>
               <p className="text-[11px] text-slate-400">
-                Vehicle: {activeDriverVehicle?.id} ({activeDriverVehicle?.name}) • Pilot: {activeDriver.name}
+                {t('vehicle.unit')}: {activeDriverVehicle?.id} ({activeDriverVehicle?.name}) • {t('vehicle.pilot')}: {activeDriver.name}
               </p>
             </div>
           </div>
@@ -41,23 +43,23 @@ export const FullRouteModal: React.FC<FullRouteModalProps> = ({ isOpen, onClose 
         {/* Route Metrics Summary Bar */}
         <div className="grid grid-cols-4 gap-2 px-6 py-3 bg-surface-container-low border-b border-border-subtle text-xs">
           <div>
-            <span className="text-text-muted text-[10px] uppercase font-semibold">Total Distance</span>
+            <span className="text-text-muted text-[10px] uppercase font-semibold">{t('vehicle.distance')}</span>
             <div className="font-mono font-bold text-deep-navy text-sm">
               {activeDriverRoute?.totalDistanceKm || 24.6} km
             </div>
           </div>
           <div>
-            <span className="text-text-muted text-[10px] uppercase font-semibold">Stops Manifest</span>
+            <span className="text-text-muted text-[10px] uppercase font-semibold">{t('driver.stopsManifest')}</span>
             <div className="font-mono font-bold text-deep-navy text-sm">{stops.length + 2} Legs</div>
           </div>
           <div>
-            <span className="text-text-muted text-[10px] uppercase font-semibold">Est. Drive Time</span>
+            <span className="text-text-muted text-[10px] uppercase font-semibold">{t('driver.estDriveTime')}</span>
             <div className="font-mono font-bold text-deep-navy text-sm">
-              {activeDriverRoute?.totalDurationMinutes || 145} mins
+              {activeDriverRoute?.totalDurationMinutes || 145} {t('common.mins')}
             </div>
           </div>
           <div>
-            <span className="text-text-muted text-[10px] uppercase font-semibold">SLA Compliance</span>
+            <span className="text-text-muted text-[10px] uppercase font-semibold">{t('orders.slaStatus')}</span>
             <div className="font-mono font-bold text-status-success text-sm">98.4%</div>
           </div>
         </div>
@@ -71,7 +73,7 @@ export const FullRouteModal: React.FC<FullRouteModalProps> = ({ isOpen, onClose 
                 ✓
               </div>
               <div>
-                <span className="font-bold text-deep-navy">1. Depot Departure</span>
+                <span className="font-bold text-deep-navy">1. {t('driver.depotStart')}</span>
                 <p className="text-[11px] text-text-secondary mt-0.5">{activeDriver.depot}</p>
               </div>
             </div>
@@ -106,12 +108,12 @@ export const FullRouteModal: React.FC<FullRouteModalProps> = ({ isOpen, onClose 
                     <span className="font-bold text-deep-navy truncate">— {stop.name}</span>
                     {stop.isPriority && (
                       <span className="px-1.5 py-0.2 rounded bg-status-critical/15 text-status-critical font-bold text-[9px]">
-                        URGENT
+                        {t('statuses.urgent')}
                       </span>
                     )}
                     {stop.absorbedFromVehicleId && (
                       <span className="px-1.5 py-0.2 rounded bg-purple-100 text-ai-intelligence font-bold text-[9px]">
-                        Absorbed
+                        {t('driver.absorbed')}
                       </span>
                     )}
                   </div>
@@ -126,7 +128,7 @@ export const FullRouteModal: React.FC<FullRouteModalProps> = ({ isOpen, onClose 
                     stop.completed ? 'text-status-success' : 'text-primary'
                   }`}
                 >
-                  {stop.completed ? 'Completed' : 'Pending'}
+                  {stop.completed ? t('statuses.completed') : t('statuses.pending')}
                 </span>
               </div>
             </div>
@@ -139,7 +141,7 @@ export const FullRouteModal: React.FC<FullRouteModalProps> = ({ isOpen, onClose 
                 {stops.length + 2}
               </div>
               <div>
-                <span className="font-bold text-deep-navy">Final Return to Depot</span>
+                <span className="font-bold text-deep-navy">{t('driver.depotReturn')}</span>
                 <p className="text-[11px] text-text-secondary mt-0.5">{activeDriver.depot}</p>
               </div>
             </div>
@@ -153,7 +155,7 @@ export const FullRouteModal: React.FC<FullRouteModalProps> = ({ isOpen, onClose 
             onClick={onClose}
             className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-deep-navy font-bold text-xs transition-colors"
           >
-            Close Manifest
+            {t('common.close')}
           </button>
         </div>
       </div>
